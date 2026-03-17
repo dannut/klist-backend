@@ -43,7 +43,7 @@ func main() {
 	r.Use(securityHeaders())
 	r.Use(corsMiddleware())
 
-	r.GET("/health", healthHandler)
+	r.GET("/api/health", healthHandler)
 	r.GET("/api/search", rateLimitMiddleware(), searchHandler)
 
 	// Internal cache invalidation — accessible only from within the cluster
