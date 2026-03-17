@@ -1,0 +1,18 @@
+linters:
+  enable:
+    - errcheck      # verifica erorile neverificate
+    - gosimple      # sugereaza simplificari ale codului
+    - govet         # verifica greselile comune de programare
+    - staticcheck   # analiza statica avansata
+    - unused        # variabile si functii nefolosite
+    - gofmt         # verifica formatarea codului
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+  gofmt:
+    simplify: true
+
+run:
+  timeout: 5m
