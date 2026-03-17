@@ -5,50 +5,42 @@ package main
 import (
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
+	"os"
 	"testing"
-
-	"github.com/gin-gonic/gin"
 )
-
-func setupHealthRouter(t *testing.T) *gin.Engine {
-	t.Helper()
-	initDB()
-	gin.SetMode(gin.TestMode)
-	r := gin.New()
-	r.GET("/health", healthHandler)
-	return r
-}
 
 // Test 4
 // Nume: TestHealthEndpoint_ReturneazaUP
-// Ce verifica: ca endpoint-ul /health returneaza status "UP" si HTTP 200
-//
-//	cand baza de date este accesibila
-//
-// De ce: pipeline-ul CI/CD foloseste /health pentru smoke tests — daca
-//
-//	returneaza DOWN, deployment-ul esueaza automat si se face rollback
-//
-// Tip: integration test — necesita PostgreSQL pornit cu variabilele de mediu:
-//
-//	DB_HOST, DB_USER, DB_PASSWORD, DB_NAME
+// Ce verifica: ca endpoint-ul /health de pe Staging returneaza status "UP"
+// De ce: pipeline-ul CI/CD foloseste /health pentru smoke tests.
+// Tip: True Integration/E2E test — face un request HTTP real catre TEST_BASE_URL.
 func TestHealthEndpoint_ReturneazaUP(t *testing.T) {
-	r := setupHealthRouter(t)
-	req := httptest.NewRequest("GET", "/health", nil)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("asteptam 200, am primit %d", w.Code)
+	// 1. Luam URL-ul din GitHub Actions (ex: https://test.kli.st)
+	baseURL := os.Getenv("TEST_BASE_URL")
+	if baseURL == "" {
+		t.Skip("Sarim testul: Variabila TEST_BASE_URL nu este setata.")
 	}
 
+	// 2. Facem o cerere HTTP reala catre mediul de Staging
+	resp, err := http.Get(baseURL + "/health")
+	if err != nil {
+		t.Fatalf("Eroare la apelul HTTP catre Staging: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// 3. Verificam ca primim HTTP 200 OK
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Asteptam 200 OK de la Staging, am primit %d", resp.StatusCode)
+	}
+
+	// 4. Citim si decodam JSON-ul returnat
 	var body map[string]string
-	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
-		t.Fatalf("response body invalid JSON: %v", err)
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("Response body invalid JSON: %v", err)
 	}
 
+	// 5. Validam ca aplicatia e UP
 	if body["status"] != "UP" {
-		t.Errorf("asteptam status=UP, am primit status=%s", body["status"])
+		t.Errorf("Asteptam status=UP de la Staging, am primit status=%s", body["status"])
 	}
 }
