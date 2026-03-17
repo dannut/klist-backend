@@ -70,13 +70,17 @@ jobs:
 
       # Actualizeaza tag-ul imaginii in manifestul de staging
       # ArgoCD detecteaza schimbarea si deployeaza automat
-      - name: Update image tag
+      - - name: Update image tag
         run: |
-          sed -i "s|image: ghcr.io/dannut/klist-backend:.*|image: ghcr.io/dannut/klist-backend:staging-${{ github.sha }}|g" k8s/staging/04-backend.yaml
+          # Extragem primele 7 caractere din SHA
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          
+          # Folosim variabila SHORT_SHA in comanda sed
+          sed -i "s|image: ghcr.io/dannut/klist-backend:.*|image: ghcr.io/dannut/klist-backend:staging-${SHORT_SHA}|g" k8s/staging/04-backend.yaml
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add k8s/staging/04-backend.yaml
-          git commit -m "ci: update backend image to staging-${{ github.sha }}"
+          git commit -m "ci: update backend image to staging-${SHORT_SHA}"
           git push
 
   integration-tests:
