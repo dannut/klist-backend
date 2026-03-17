@@ -95,7 +95,7 @@ jobs:
       - name: Wait for staging
         run: |
           for i in $(seq 1 50); do
-            curl -sf https://test.kli.st/health && exit 0
+            curl -sf https://test.kli.st/api/health && exit 0
             echo "Attempt $i/24 — waiting 10s..."
             sleep 10
           done
