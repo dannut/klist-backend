@@ -22,7 +22,7 @@ func TestHealthEndpoint_ReturneazaUP(t *testing.T) {
 	}
 
 	// 2. Facem o cerere HTTP reala catre mediul de Staging
-	resp, err := http.Get(baseURL + "/health")
+	resp, err := http.Get(baseURL + "/api/health")
 	if err != nil {
 		t.Fatalf("Eroare la apelul HTTP catre Staging: %v", err)
 	}
