@@ -12,21 +12,23 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o kli-backend .
 
 # ── Stage 2: Run ──────────────────────────────────────────────────────────────
-FROM scratch
+# Folosim Alpine în loc de scratch pentru a avea /bin/sh necesar Vault-ului
+FROM alpine:3.19
 
-# Copy CA certificates for HTTPS calls (Ollama, Vault)
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+# Instalăm certificatele CA pentru apeluri HTTPS (Ollama, Vault)
+RUN apk --no-cache add ca-certificates
 
-# Copy /etc/passwd from builder so we can run as non-root
-# UID 65532 = "nonroot" (standard for distroless/scratch images)
-COPY --from=builder /etc/passwd /etc/passwd
+# Creăm userul non-root (65532) pentru a păstra securitatea imaginii
+RUN addgroup -S -g 65532 nonroot && adduser -S -u 65532 -G nonroot nonroot
 
-# Copy binary
+# Copiem binarul din builder
 COPY --from=builder /app/kli-backend /kli-backend
 
+# Expunem portul aplicației
 EXPOSE 8080
 
-# Run as non-root
+# Rulăm ca non-root (userul creat mai sus)
 USER 65532
 
+# Păstrăm ENTRYPOINT-ul, dar acum Kubernetes va putea rula /bin/sh înainte
 ENTRYPOINT ["/kli-backend"]
