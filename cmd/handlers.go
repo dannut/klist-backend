@@ -1,9 +1,9 @@
 package main
 
 import (
-	_ "embed"
 	"log"
 	"net/http"
+	_ "embed"
 	"strconv"
 	"strings"
 	"sync"
@@ -27,7 +27,7 @@ func healthHandler(c *gin.Context) {
 	defer health.mu.Unlock()
 
 	if time.Since(health.checked) > 5*time.Second {
-		health.status = db.Ping() == nil
+		health.status  = db.Ping() == nil
 		health.checked = time.Now()
 	}
 
@@ -65,7 +65,7 @@ func searchHandler(c *gin.Context) {
 	}
 
 	// Pagination params
-	page := parseIntParam(c.Query("page"), defaultPage)
+	page    := parseIntParam(c.Query("page"),     defaultPage)
 	perPage := parseIntParam(c.Query("per_page"), defaultPerPage)
 
 	if page < 1 {
@@ -76,7 +76,7 @@ func searchHandler(c *gin.Context) {
 	}
 
 	// Check cache first
-	key := cacheKey(q, page, perPage)
+	key     := cacheKey(q, page, perPage)
 	if cached := cacheGet(key); cached != nil {
 		c.Header("X-Cache", "HIT")
 		c.JSON(http.StatusOK, cached)
