@@ -46,6 +46,7 @@ func main() {
 	r.GET("/api/health", healthHandler)
 	r.GET("/api/search", rateLimitMiddleware(), searchHandler)
 	r.GET("/install.sh", installScriptHandler)
+	r.GET("/releases/:file", releasesHandler)
 
 	// Internal cache invalidation — accessible only from within the cluster
 	// NetworkPolicy blocks external access; this is an extra safety check

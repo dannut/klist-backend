@@ -8,7 +8,6 @@ database/
 
 # Scripts
 generate_embeddings.py
-cli/
 
 # Config locale
 .env
