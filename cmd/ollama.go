@@ -22,7 +22,7 @@ func ollamaBaseURL() string {
 
 // ollamaClient has explicit timeouts to prevent goroutine leaks on slow upstream
 var ollamaClient = &http.Client{
-	Timeout: 30 * time.Second,
+	Timeout: 120 * time.Second,
 }
 
 // ── Prompt injection protection ───────────────────────────────────────────────
