@@ -95,7 +95,7 @@ Respond ONLY with valid JSON, no explanation, no markdown.
 Query: %s`, query)
 
 	body, _ := json.Marshal(map[string]interface{}{
-		"model":  "llama3.2",
+		"model":  "llama3",
 		"prompt": prompt,
 		"stream": false,
 	})
@@ -124,7 +124,7 @@ Query: %s`, query)
 		return QueryIntent{}, fmt.Errorf("invalid JSON from llama: %v — got: %s", err, cleaned)
 	}
 
-	intent.Tool    = validateTool(strings.ToLower(strings.TrimSpace(intent.Tool)))
+	intent.Tool = validateTool(strings.ToLower(strings.TrimSpace(intent.Tool)))
 	intent.Keyword = strings.ToLower(strings.TrimSpace(intent.Keyword))
 
 	// Log only metadata, not the query itself (PII protection)
