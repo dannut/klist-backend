@@ -95,7 +95,7 @@ Respond ONLY with valid JSON, no explanation, no markdown.
 Query: %s`, query)
 
 	body, _ := json.Marshal(map[string]interface{}{
-		"model":  "llama3.2:1b"
+		"model":  "llama3.2:1b",
 		"prompt": prompt,
 		"stream": false,
 	})
