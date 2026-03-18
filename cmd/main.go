@@ -162,3 +162,4 @@ func requestLogger() gin.HandlerFunc {
 // trigger
 // init
 // init
+// trigger pipeline
