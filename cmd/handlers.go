@@ -1,9 +1,9 @@
 package main
 
 import (
+	_ "embed"
 	"log"
 	"net/http"
-	_ "embed"
 	"strconv"
 	"strings"
 	"sync"
@@ -27,7 +27,7 @@ func healthHandler(c *gin.Context) {
 	defer health.mu.Unlock()
 
 	if time.Since(health.checked) > 5*time.Second {
-		health.status  = db.Ping() == nil
+		health.status = db.Ping() == nil
 		health.checked = time.Now()
 	}
 
@@ -65,7 +65,7 @@ func searchHandler(c *gin.Context) {
 	}
 
 	// Pagination params
-	page    := parseIntParam(c.Query("page"),     defaultPage)
+	page := parseIntParam(c.Query("page"), defaultPage)
 	perPage := parseIntParam(c.Query("per_page"), defaultPerPage)
 
 	if page < 1 {
@@ -76,7 +76,7 @@ func searchHandler(c *gin.Context) {
 	}
 
 	// Check cache first
-	key     := cacheKey(q, page, perPage)
+	key := cacheKey(q, page, perPage)
 	if cached := cacheGet(key); cached != nil {
 		c.Header("X-Cache", "HIT")
 		c.JSON(http.StatusOK, cached)
@@ -175,6 +175,34 @@ func installScriptHandler(c *gin.Context) {
 	c.Header("Content-Type", "text/plain; charset=utf-8")
 	c.Header("Content-Disposition", "inline; filename=\"install.sh\"")
 	c.String(http.StatusOK, installScript)
+}
+
+// ── CLI releases ──────────────────────────────────────────────────────────────
+// Serves pre-compiled CLI binaries and SHA256SUMS from /releases directory.
+// Built at Docker image build time — see Dockerfile cli-builder stage.
+
+func releasesHandler(c *gin.Context) {
+	filename := c.Param("file")
+
+	// Whitelist allowed files to prevent path traversal
+	allowed := map[string]string{
+		"kli-linux-amd64":  "application/octet-stream",
+		"kli-linux-arm64":  "application/octet-stream",
+		"kli-darwin-amd64": "application/octet-stream",
+		"kli-darwin-arm64": "application/octet-stream",
+		"SHA256SUMS":       "text/plain; charset=utf-8",
+	}
+
+	contentType, ok := allowed[filename]
+	if !ok {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+
+	filepath := "/releases/" + filename
+	c.Header("Content-Type", contentType)
+	c.Header("Content-Disposition", "attachment; filename=\""+filename+"\"")
+	c.File(filepath)
 }
 
 func parseIntParam(s string, fallback int) int {
