@@ -6,9 +6,7 @@ on:
       - staging
     paths:
       - 'cmd/**'
-      - 'go.mod'
-      - 'go.sum'
-      - 'Dockerfile'
+      - 'scripts/install.sh'
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true

@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	_ "embed"
 	"strconv"
 	"strings"
 	"sync"
@@ -164,7 +165,17 @@ func clusterOnlyMiddleware() gin.HandlerFunc {
 	}
 }
 
-func parseIntParam(s string, fallback int) int {
+// ── Install script ────────────────────────────────────────────────────────────
+// Serves the kli CLI install script. Proxied by nginx from /install.sh.
+
+//go:embed install.sh
+var installScript string
+
+func installScriptHandler(c *gin.Context) {
+	c.Header("Content-Type", "text/plain; charset=utf-8")
+	c.Header("Content-Disposition", "inline; filename=\"install.sh\"")
+	c.String(http.StatusOK, installScript)
+}
 	if s == "" {
 		return fallback
 	}

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
+	redis "github.com/redis/go-redis/v9"
 	"golang.org/x/time/rate"
 )
 
@@ -35,7 +35,7 @@ func redisRateAllow(ip string) (bool, error) {
 	ctx := context.Background()
 
 	// Sliding window using INCR + EXPIRE
-	pipe := rdb.Pipeline()
+	var pipe redis.Pipeliner = rdb.Pipeline()
 	incr := pipe.Incr(ctx, key)
 	pipe.Expire(ctx, key, rateWindow)
 	_, err := pipe.Exec(ctx)
@@ -119,6 +119,3 @@ func tooManyRequests(c *gin.Context) {
 	})
 	c.Abort()
 }
-
-// redisRateAllow uses pipeline
-var _ = redis.NewClient // keep import used
