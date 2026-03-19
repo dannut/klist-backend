@@ -137,11 +137,11 @@ func search(q string, page, perPage int) ([]Command, error) {
 		if err == nil && len(results) > 0 {
 			return results, nil
 		}
-		return searchVector(q, page, perPage)
+		return searchVectorWithThreshold(q, page, perPage, 0.8)
 	}
 
 	// No clear intent → vector search
-	return searchVector(q, page, perPage)
+	return searchVectorWithThreshold(q, page, perPage, 0.8)
 }
 
 // ── Admin: cache invalidation ─────────────────────────────────────────────────

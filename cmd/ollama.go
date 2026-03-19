@@ -95,7 +95,7 @@ Respond ONLY with valid JSON, no explanation, no markdown.
 Query: %s`, query)
 
 	body, _ := json.Marshal(map[string]interface{}{
-		"model":  "llama3.2:1b",
+		"model":  "qwen2.5:0.5b",
 		"prompt": prompt,
 		"stream": false,
 	})
@@ -132,11 +132,11 @@ Query: %s`, query)
 	return intent, nil
 }
 
-// ── Embeddings via nomic-embed-text ──────────────────────────────────────────
+// ── Embeddings via snowflake-arctic-embed:22m ──────────────────────────────────────────
 
 func getEmbedding(text string) ([]float32, error) {
 	body, _ := json.Marshal(map[string]interface{}{
-		"model":  "nomic-embed-text",
+		"model":  "snowflake-arctic-embed:22m",
 		"prompt": text,
 	})
 
