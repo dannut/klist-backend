@@ -11,9 +11,10 @@ import (
 
 // Command mirrors backend/cmd/models.go — keep in sync if fields change.
 type Command struct {
-	Tool        string `json:"tool"`
-	Syntax      string `json:"syntax"`
-	Description string `json:"description"`
+	Tool        string  `json:"tool"`
+	Syntax      string  `json:"syntax"`
+	Description string  `json:"description"`
+	Score       float64 `json:"score"`
 }
 
 var httpClient = &http.Client{
