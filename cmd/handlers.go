@@ -159,7 +159,7 @@ func performVectorSearch(q string, page, perPage int) ([]Command, error) {
 
 	// Professional English error message for the website
 	if len(res) == 0 || res[0].Score < 0.6 {
-		return nil, fmt.Errorf("No commands found matching your search criteria. Please refine your keywords.", q)
+		return nil, fmt.Errorf("No commands found matching your search criteria. Please refine your keywords.")
 	}
 
 	return res, nil
