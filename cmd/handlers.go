@@ -137,11 +137,29 @@ func search(q string, page, perPage int) ([]Command, error) {
 		if err == nil && len(results) > 0 {
 			return results, nil
 		}
-		return searchVector(q, page, perPage)
+
+		res, err := searchVector(q, page, perPage)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(res) > 0 && res[0].Score < 0.8 {
+			return []Command{}, nil
+		}
+		return res, nil
+
 	}
 
 	// No clear intent → vector search
-	return searchVector(q, page, perPage)
+	res, err := searchVector(q, page, perPage)
+	if err != nil {
+		return nil, err
+	}
+	if len(res) > 0 && res[0].Score < 0.8 {
+		return []Command{}, nil
+	}
+	return res, nil
+
 }
 
 // ── Admin: cache invalidation ─────────────────────────────────────────────────
