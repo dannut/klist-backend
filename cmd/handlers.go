@@ -2,6 +2,7 @@ package main
 
 import (
 	_ "embed"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -85,6 +86,11 @@ func searchHandler(c *gin.Context) {
 
 	results, err := search(q, page, perPage)
 	if err != nil {
+		// If it's a "not found" error from our vector search, return 404 with the message
+		if strings.Contains(err.Error(), "no results found") {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "search error"})
 		return
 	}
@@ -99,7 +105,7 @@ func searchHandler(c *gin.Context) {
 // ── Search entrypoint ─────────────────────────────────────────────────────────
 
 func search(q string, page, perPage int) ([]Command, error) {
-	// Single word → direct SQL, no LLM needed
+	// 1. Single word → direct SQL, no LLM needed
 	if len(strings.Fields(q)) == 1 {
 		return searchDB(q, page, perPage)
 	}
@@ -109,68 +115,63 @@ func search(q string, page, perPage int) ([]Command, error) {
 
 	intent, err := interpretQuery(sanitized)
 	if err != nil {
-		log.Printf("llama3.2 failed, falling back to vector search: %v", err)
-		return searchVector(q, page, perPage)
+		log.Printf("AI interpret failed, falling back to vector: %v", err)
+		return performVectorSearch(q, page, perPage)
 	}
 
-	// Tool only → all commands for that tool
+	// 2. Tool only → all commands for that tool
 	if intent.Tool != "" && intent.Keyword == "" {
 		return searchDB(intent.Tool, page, perPage)
 	}
 
-	// Tool + keyword → FTS
+	// 3. Tool + keyword → FTS (Full Text Search)
 	if intent.Tool != "" && intent.Keyword != "" {
 		results, err := searchByToolAndKeyword(intent.Tool, intent.Keyword, page, perPage)
-		if err != nil {
-			log.Printf("fts error: %v, falling back to tool", err)
-			return searchDB(intent.Tool, page, perPage)
-		}
-		if len(results) > 0 {
+		if err == nil && len(results) > 0 {
 			return results, nil
 		}
+		// Fallback to general tool search if keyword FTS fails
 		return searchDB(intent.Tool, page, perPage)
 	}
 
-	// Keyword only → try SQL first, fallback to vector
+	// 4. Keyword only OR No clear intent → Vector Search Fallback
 	if intent.Keyword != "" {
 		results, err := searchDB(intent.Keyword, page, perPage)
 		if err == nil && len(results) > 0 {
 			return results, nil
 		}
-
-		res, err := searchVector(q, page, perPage)
-		if err != nil {
-			return nil, err
-		}
-
-		if len(res) > 0 && res[0].Score < 0.8 {
-			return []Command{}, nil
-		}
-		return res, nil
-
 	}
 
-	// No clear intent → vector search
+	return performVectorSearch(q, page, perPage)
+}
+
+// performVectorSearch handles the final AI-powered fallback with a safety threshold
+func performVectorSearch(q string, page, perPage int) ([]Command, error) {
 	res, err := searchVector(q, page, perPage)
 	if err != nil {
 		return nil, err
 	}
-	if len(res) > 0 && res[0].Score < 0.8 {
-		return []Command{}, nil
-	}
-	return res, nil
 
+	// DEBUG: Watch the score in your console to fine-tune the 0.6 threshold
+	if len(res) > 0 {
+		log.Printf("DEBUG: Query '%s' -> Top Score: %f (Tool: %s)", q, res[0].Score, res[0].Tool)
+	}
+
+	// Professional English error message for the website
+	if len(res) == 0 || res[0].Score < 0.6 {
+		return nil, fmt.Errorf("No commands found matching your search criteria. Please refine your keywords.")
+	}
+
+	return res, nil
 }
 
 // ── Admin: cache invalidation ─────────────────────────────────────────────────
-// Internal only — call via kubectl exec, not exposed through Cloudflare
 
 func adminCacheInvalidateHandler(c *gin.Context) {
 	cacheInvalidate()
 	c.JSON(http.StatusOK, gin.H{"status": "cache invalidated"})
 }
 
-// clusterOnlyMiddleware blocks requests that don't come from pod CIDR (10.x.x.x)
 func clusterOnlyMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ip := c.ClientIP()
@@ -184,7 +185,6 @@ func clusterOnlyMiddleware() gin.HandlerFunc {
 }
 
 // ── Install script ────────────────────────────────────────────────────────────
-// Serves the kli CLI install script. Proxied by nginx from /install.sh.
 
 //go:embed install.sh
 var installScript string
@@ -196,13 +196,10 @@ func installScriptHandler(c *gin.Context) {
 }
 
 // ── CLI releases ──────────────────────────────────────────────────────────────
-// Serves pre-compiled CLI binaries and SHA256SUMS from /releases directory.
-// Built at Docker image build time — see Dockerfile cli-builder stage.
 
 func releasesHandler(c *gin.Context) {
 	filename := c.Param("file")
 
-	// Whitelist allowed files to prevent path traversal
 	allowed := map[string]string{
 		"kli-linux-amd64":  "application/octet-stream",
 		"kli-linux-arm64":  "application/octet-stream",
