@@ -84,7 +84,7 @@ func searchHandler(c *gin.Context) {
 		return
 	}
 
-	results, err := search(q, page, perPage)
+	results, err := search(q, c.ClientIP(), page, perPage)
 	if err != nil {
 		// If it's a "not found" error from our vector search, return 404 with the message
 		if strings.Contains(err.Error(), "no results found") {
@@ -104,7 +104,7 @@ func searchHandler(c *gin.Context) {
 
 // ── Search entrypoint ─────────────────────────────────────────────────────────
 
-func search(q string, page, perPage int) ([]Command, error) {
+func search(q, ip string, page, perPage int) ([]Command, error) {
 	// 1. Single word → direct SQL, no LLM needed
 	if len(strings.Fields(q)) == 1 {
 		return searchDB(q, page, perPage)
@@ -113,7 +113,7 @@ func search(q string, page, perPage int) ([]Command, error) {
 	// Sanitize before sending to LLM
 	sanitized := sanitizeForLLM(q)
 
-	intent, err := interpretQuery(sanitized)
+	intent, err := interpretQuery(sanitized, ip)
 	if err != nil {
 		log.Printf("AI interpret failed, falling back to vector: %v", err)
 		return performVectorSearch(q, page, perPage)

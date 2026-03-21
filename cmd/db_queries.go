@@ -8,7 +8,16 @@ import (
 
 // ── Vector search ─────────────────────────────────────────────────────────────
 
+// searchVector performs semantic search using embeddings.
+// If no embeddings exist in DB yet, falls back to searchDB transparently.
 func searchVector(q string, page, perPage int) ([]Command, error) {
+	// Check if any embeddings exist before calling Gemini API
+	var count int
+	if err := db.QueryRow("SELECT COUNT(*) FROM commands WHERE embedding IS NOT NULL").Scan(&count); err != nil || count == 0 {
+		log.Printf("vector search: no embeddings in DB, falling back to SQL")
+		return searchDB(q, page, perPage)
+	}
+
 	embedding, err := getEmbedding(q)
 	if err != nil {
 		log.Printf("vector search failed, falling back to SQL: %v", err)
