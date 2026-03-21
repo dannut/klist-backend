@@ -44,6 +44,7 @@ func main() {
 	r.Use(corsMiddleware())
 
 	r.GET("/api/health", healthHandler)
+	r.GET("/api/version", versionHandler)
 	r.GET("/api/search", rateLimitMiddleware(), searchHandler)
 	r.GET("/install.sh", installScriptHandler)
 	r.GET("/releases/:file", releasesHandler)
