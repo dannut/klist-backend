@@ -1,0 +1,121 @@
+name: Pipeline 3 — Production Release
+
+on:
+  # Triggered when Release Please creates a new tag (e.g. v1.0.0)
+  push:
+    tags:
+      - 'v*'
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: production-backend-${{ github.ref }}
+  cancel-in-progress: false  # Never cancel a production release
+
+jobs:
+
+  build-push:
+    name: Build & Push Production Image
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ghcr.io/dannut/klist-backend
+          tags: |
+            # Semantic version tag: v1.0.0
+            type=semver,pattern={{version}}
+            # Major.minor: v1.0
+            type=semver,pattern={{major}}.{{minor}}
+            # Always update latest on production
+            type=raw,value=latest
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/build-push-action@v5
+        with:
+          context: cmd
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build-push
+    environment:
+      name: production
+      url: https://kli.st
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          repository: dannut/klist-infra
+          ref: main
+          token: ${{ secrets.INFRA_TOKEN }}
+
+      - name: Update production image tag
+        run: |
+          VERSION=${{ github.ref_name }}
+          sed -i "s|image: ghcr.io/dannut/klist-backend:.*|image: ghcr.io/dannut/klist-backend:${VERSION}|g" k8s/production/04-backend.yaml
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add k8s/production/04-backend.yaml
+          git diff --quiet && git diff --staged --quiet || git commit -m "ci: deploy backend ${VERSION} to production"
+          git push
+
+  notify-success:
+    name: Notify Success
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: success()
+    steps:
+      - uses: actions/github-script@v8
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '✅ Production Release ' + context.ref.replace('refs/tags/', ''),
+              body: '## Production Release Successful\n\n' +
+                '**Version:** ' + context.ref.replace('refs/tags/', '') + '\n' +
+                '**Commit:** ' + context.sha + '\n' +
+                '**URL:** https://kli.st\n\n' +
+                'Backend deployed to production successfully.',
+              labels: ['release'],
+            });
+
+  notify-failure:
+    name: Notify Failure
+    runs-on: ubuntu-latest
+    needs: [build-push, deploy]
+    if: failure()
+    steps:
+      - uses: actions/github-script@v8
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '❌ Production Release FAILED — ' + context.ref.replace('refs/tags/', ''),
+              body: '## ❌ Pipeline 3 esuat\n\n' +
+                '| Job | Status |\n' +
+                '|-----|--------|\n' +
+                '| Build & Push | ${{ needs.build-push.result }} |\n' +
+                '| Deploy | ${{ needs.deploy.result }} |\n\n' +
+                '**Version:** ' + context.ref.replace('refs/tags/', '') + '\n' +
+                '**Commit:** ' + context.sha,
+              labels: ['ci-failure', 'release'],
+            });

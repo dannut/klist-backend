@@ -13,6 +13,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// ── Version ───────────────────────────────────────────────────────────────────
+
+func versionHandler(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"version":  getenv("APP_VERSION", "dev"),
+		"status":   getenv("APP_STATUS", "Development"),
+		"released": getenv("APP_RELEASED", ""),
+		"upcoming": getenv("APP_UPCOMING", ""),
+	})
+}
+
 // ── Health ────────────────────────────────────────────────────────────────────
 
 type healthCache struct {
