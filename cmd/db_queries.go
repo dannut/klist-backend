@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
@@ -10,18 +11,17 @@ import (
 
 // searchVector performs semantic search using embeddings.
 // If no embeddings exist in DB yet, falls back to searchDB transparently.
-func searchVector(q string, page, perPage int) ([]Command, error) {
-	// Check if any embeddings exist before calling Gemini API
+func searchVector(ctx context.Context, q string, page, perPage int) ([]Command, error) {
 	var count int
-	if err := db.QueryRow("SELECT COUNT(*) FROM commands WHERE embedding IS NOT NULL").Scan(&count); err != nil || count == 0 {
+	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM commands WHERE embedding IS NOT NULL").Scan(&count); err != nil || count == 0 {
 		log.Printf("vector search: no embeddings in DB, falling back to SQL")
-		return searchDB(q, page, perPage)
+		return searchDB(ctx, q, page, perPage)
 	}
 
-	embedding, err := getEmbedding(q)
+	embedding, err := getEmbedding(ctx, q)
 	if err != nil {
 		log.Printf("vector search failed, falling back to SQL: %v", err)
-		return searchDB(q, page, perPage)
+		return searchDB(ctx, q, page, perPage)
 	}
 
 	// Convert []float32 → postgres vector string [0.1,0.2,...]
@@ -36,8 +36,10 @@ func searchVector(q string, page, perPage int) ([]Command, error) {
 	sb.WriteString("]")
 
 	offset := (page - 1) * perPage
-	return queryDB(`
-		SELECT t.name, c.syntax, c.description
+	// Fix: include 1 - (embedding <=> $1) as Score so threshold check works
+	return queryDBContext(ctx, `
+		SELECT t.name, c.syntax, c.description,
+		       1 - (c.embedding <=> $1::vector) AS score
 		FROM commands c
 		JOIN tools t ON c.tool_id = t.id
 		WHERE c.embedding IS NOT NULL
@@ -49,10 +51,10 @@ func searchVector(q string, page, perPage int) ([]Command, error) {
 
 // ── FTS: tool + keyword ───────────────────────────────────────────────────────
 
-func searchByToolAndKeyword(tool, keyword string, page, perPage int) ([]Command, error) {
+func searchByToolAndKeyword(ctx context.Context, tool, keyword string, page, perPage int) ([]Command, error) {
 	offset := (page - 1) * perPage
-	return queryDB(`
-		SELECT t.name, c.syntax, c.description
+	return queryDBContext(ctx, `
+		SELECT t.name, c.syntax, c.description, 0 AS score
 		FROM commands c
 		JOIN tools t ON c.tool_id = t.id
 		WHERE
@@ -72,9 +74,9 @@ func searchByToolAndKeyword(tool, keyword string, page, perPage int) ([]Command,
 
 // ── General SQL search ────────────────────────────────────────────────────────
 
-func searchDB(term string, page, perPage int) ([]Command, error) {
+func searchDB(ctx context.Context, term string, page, perPage int) ([]Command, error) {
 	var toolExists bool
-	if err := db.QueryRow(
+	if err := db.QueryRowContext(ctx,
 		"SELECT EXISTS(SELECT 1 FROM tools WHERE slug ILIKE $1 OR name ILIKE $1)", term,
 	).Scan(&toolExists); err != nil {
 		return nil, err
@@ -83,8 +85,8 @@ func searchDB(term string, page, perPage int) ([]Command, error) {
 	offset := (page - 1) * perPage
 
 	if toolExists {
-		return queryDB(`
-			SELECT t.name, c.syntax, c.description
+		return queryDBContext(ctx, `
+			SELECT t.name, c.syntax, c.description, 0 AS score
 			FROM commands c
 			JOIN tools t ON c.tool_id = t.id
 			WHERE t.slug ILIKE $1 OR t.name ILIKE $1
@@ -94,8 +96,8 @@ func searchDB(term string, page, perPage int) ([]Command, error) {
 		)
 	}
 
-	return queryDB(`
-		SELECT t.name, c.syntax, c.description
+	return queryDBContext(ctx, `
+		SELECT t.name, c.syntax, c.description, 0 AS score
 		FROM commands c
 		JOIN tools t ON c.tool_id = t.id
 		WHERE
@@ -114,10 +116,10 @@ func searchDB(term string, page, perPage int) ([]Command, error) {
 	)
 }
 
-// ── Raw query executor ────────────────────────────────────────────────────────
+// ── Raw query executor with context ──────────────────────────────────────────
 
-func queryDB(sql string, args ...interface{}) ([]Command, error) {
-	rows, err := db.Query(sql, args...)
+func queryDBContext(ctx context.Context, sql string, args ...interface{}) ([]Command, error) {
+	rows, err := db.QueryContext(ctx, sql, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +128,7 @@ func queryDB(sql string, args ...interface{}) ([]Command, error) {
 	var results []Command
 	for rows.Next() {
 		var cmd Command
-		if err := rows.Scan(&cmd.Tool, &cmd.Syntax, &cmd.Description); err != nil {
+		if err := rows.Scan(&cmd.Tool, &cmd.Syntax, &cmd.Description, &cmd.Score); err != nil {
 			log.Printf("scan error: %v", err)
 			continue
 		}

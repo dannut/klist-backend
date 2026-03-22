@@ -197,7 +197,7 @@ type geminiGenerateResponse struct {
 // interpretQuery parses a multi-word query into tool + keyword using Gemini.
 // ip is the caller's IP, used for per-IP quota tracking.
 // Falls back to SQL search if quota is reached or Gemini is unavailable.
-func interpretQuery(query, ip string) (QueryIntent, error) {
+func interpretQuery(ctx context.Context, query, ip string) (QueryIntent, error) {
 	// Check quota before calling Gemini
 	allowed, err := geminiQuotaAllow(ip)
 	if err != nil {
@@ -230,7 +230,14 @@ Query: %s`, query)
 		geminiAPIKey(),
 	)
 
-	resp, err := geminiClient.Post(url, "application/json", bytes.NewReader(reqBody))
+	// Use context-aware request — if client disconnects, HTTP call is cancelled
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(reqBody))
+	if err != nil {
+		return QueryIntent{}, fmt.Errorf("gemini request build error: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := geminiClient.Do(req)
 	if err != nil {
 		return QueryIntent{}, fmt.Errorf("gemini unreachable: %v", err)
 	}
@@ -285,18 +292,26 @@ type geminiEmbedResponse struct {
 	} `json:"embedding"`
 }
 
-func getEmbedding(text string) ([]float32, error) {
+func getEmbedding(ctx context.Context, text string) ([]float32, error) {
 	reqBody, _ := json.Marshal(geminiEmbedRequest{
-		Model:   "models/text-embedding-004",
-		Content: geminiContent{Parts: []geminiPart{{Text: text}}},
+		Model:                "models/gemini-embedding-001",
+		Content:              geminiContent{Parts: []geminiPart{{Text: text}}},
+		OutputDimensionality: 768,
 	})
 
 	url := fmt.Sprintf(
-		"https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=%s",
+		"https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=%s",
 		geminiAPIKey(),
 	)
 
-	resp, err := geminiClient.Post(url, "application/json", bytes.NewReader(reqBody))
+	// Use context-aware request — cancelled if client disconnects
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(reqBody))
+	if err != nil {
+		return nil, fmt.Errorf("gemini embed request build error: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := geminiClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("gemini embeddings unreachable: %v", err)
 	}
