@@ -32,12 +32,11 @@ jobs:
       - uses: docker/metadata-action@v5
         id: meta
         with:
-          images: ghcr.io/dannut/klist-backend
+          images: ghcr.io/dannut/klist-frontend
           tags: |
-            # Semantic version tag: v1.0.0
-            type=semver,pattern={{version}}
-            # Major.minor: v1.0
-            type=semver,pattern={{major}}.{{minor}}
+            # add "v" for Git compatibility (e.g. v1.0.0):
+            type=semver,pattern=v{{version}}
+            type=semver,pattern=v{{major}}.{{minor}}
             # Always update latest on production
             type=raw,value=latest
 
