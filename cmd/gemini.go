@@ -282,8 +282,9 @@ Query: %s`, query)
 // text-embedding-004 is free tier with no meaningful RPD cap — no quota guard needed.
 
 type geminiEmbedRequest struct {
-	Model   string        `json:"model"`
-	Content geminiContent `json:"content"`
+	Model                string        `json:"model"`
+	Content              geminiContent `json:"content"`
+	OutputDimensionality int           `json:"outputDimensionality,omitempty"`
 }
 
 type geminiEmbedResponse struct {
