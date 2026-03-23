@@ -2,6 +2,7 @@ package main
 
 import (
 	_ "embed"
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -95,7 +96,7 @@ func searchHandler(c *gin.Context) {
 		return
 	}
 
-	results, err := search(q, c.ClientIP(), page, perPage)
+	results, err := search(c.Request.Context(), q, c.ClientIP(), page, perPage)
 	if err != nil {
 		// If it's a "not found" error from our vector search, return 404 with the message
 		if strings.Contains(err.Error(), "no results found") {
@@ -115,60 +116,53 @@ func searchHandler(c *gin.Context) {
 
 // ── Search entrypoint ─────────────────────────────────────────────────────────
 
-func search(q, ip string, page, perPage int) ([]Command, error) {
+func search(ctx context.Context, q, ip string, page, perPage int) ([]Command, error) {
 	// 1. Single word → direct SQL, no LLM needed
 	if len(strings.Fields(q)) == 1 {
-		return searchDB(q, page, perPage)
+		return searchDB(ctx, q, page, perPage)
 	}
 
 	// Sanitize before sending to LLM
 	sanitized := sanitizeForLLM(q)
 
-	intent, err := interpretQuery(sanitized, ip)
+	intent, err := interpretQuery(ctx, sanitized, ip)
 	if err != nil {
 		log.Printf("AI interpret failed, falling back to vector: %v", err)
-		return performVectorSearch(q, page, perPage)
+		return performVectorSearch(ctx, q, page, perPage)
 	}
 
 	// 2. Tool only → all commands for that tool
 	if intent.Tool != "" && intent.Keyword == "" {
-		return searchDB(intent.Tool, page, perPage)
+		return searchDB(ctx, intent.Tool, page, perPage)
 	}
 
 	// 3. Tool + keyword → FTS (Full Text Search)
 	if intent.Tool != "" && intent.Keyword != "" {
-		results, err := searchByToolAndKeyword(intent.Tool, intent.Keyword, page, perPage)
+		results, err := searchByToolAndKeyword(ctx, intent.Tool, intent.Keyword, page, perPage)
 		if err == nil && len(results) > 0 {
 			return results, nil
 		}
-		// Fallback to general tool search if keyword FTS fails
-		return searchDB(intent.Tool, page, perPage)
+		return searchDB(ctx, intent.Tool, page, perPage)
 	}
 
 	// 4. Keyword only OR No clear intent → Vector Search Fallback
 	if intent.Keyword != "" {
-		results, err := searchDB(intent.Keyword, page, perPage)
+		results, err := searchDB(ctx, intent.Keyword, page, perPage)
 		if err == nil && len(results) > 0 {
 			return results, nil
 		}
 	}
 
-	return performVectorSearch(q, page, perPage)
+	return performVectorSearch(ctx, q, page, perPage)
 }
 
 // performVectorSearch handles the final AI-powered fallback with a safety threshold
-func performVectorSearch(q string, page, perPage int) ([]Command, error) {
-	res, err := searchVector(q, page, perPage)
+func performVectorSearch(ctx context.Context, q string, page, perPage int) ([]Command, error) {
+	res, err := searchVector(ctx, q, page, perPage)
 	if err != nil {
 		return nil, err
 	}
 
-	// DEBUG: Watch the score in your console to fine-tune the 0.6 threshold
-	if len(res) > 0 {
-		log.Printf("DEBUG: Query '%s' -> Top Score: %f (Tool: %s)", q, res[0].Score, res[0].Tool)
-	}
-
-	// Professional English error message for the website
 	if len(res) == 0 || res[0].Score < 0.6 {
 		return nil, fmt.Errorf("No commands found matching your search criteria. Please refine your keywords.")
 	}

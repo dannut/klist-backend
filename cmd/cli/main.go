@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const defaultAPI = "http://localhost:8080"
+const defaultAPI = "https://kli.st"
 const version    = "1.0.0"
 
 func main() {
