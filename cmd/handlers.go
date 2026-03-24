@@ -3,7 +3,7 @@ package main
 import (
 	_ "embed"
 	"context"
-	"fmt"
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
@@ -13,6 +13,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+var errNoResults = errors.New("no results found")
 
 // ── Version ───────────────────────────────────────────────────────────────────
 
@@ -98,9 +100,8 @@ func searchHandler(c *gin.Context) {
 
 	results, err := search(c.Request.Context(), q, c.ClientIP(), page, perPage)
 	if err != nil {
-		// If it's a "not found" error from our vector search, return 404 with the message
-		if strings.Contains(err.Error(), "no results found") {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		if errors.Is(err, errNoResults) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "no commands found matching your search criteria"})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "search error"})
@@ -164,7 +165,7 @@ func performVectorSearch(ctx context.Context, q string, page, perPage int) ([]Co
 	}
 
 	if len(res) == 0 || res[0].Score < 0.6 {
-		return nil, fmt.Errorf("No commands found matching your search criteria. Please refine your keywords.")
+		return nil, errNoResults
 	}
 
 	return res, nil
@@ -180,7 +181,7 @@ func adminCacheInvalidateHandler(c *gin.Context) {
 func clusterOnlyMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ip := c.ClientIP()
-		if !strings.HasPrefix(ip, "10.") && !strings.HasPrefix(ip, "127.") {
+		if !strings.HasPrefix(ip, "10.") && ip != "127.0.0.1" {
 			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
 			c.Abort()
 			return

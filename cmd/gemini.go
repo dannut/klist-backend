@@ -41,10 +41,10 @@ func sanitizeForLLM(q string) string {
 	)
 	q = replacer.Replace(q)
 
-	// Limit to first 5 words to prevent prompt stuffing
+	// Limit to first 10 words to prevent prompt stuffing
 	words := strings.Fields(q)
-	if len(words) > 5 {
-		words = words[:5]
+	if len(words) > 10 {
+		words = words[:10]
 	}
 	return strings.Join(words, " ")
 }
@@ -109,13 +109,12 @@ func secondsUntilMidnightUTC() time.Duration {
 // Returns (true, nil) when the call is allowed.
 // Returns (false, nil) when a cap is reached — caller should fall back to SQL.
 // Returns (false, err) only on unexpected Redis errors.
-func geminiQuotaAllow(ip string) (bool, error) {
+func geminiQuotaAllow(ctx context.Context, ip string) (bool, error) {
 	if rdb == nil {
 		// Redis unavailable — allow the call (fail open: better UX than blocking)
 		return true, nil
 	}
 
-	ctx := context.Background()
 	ttl := secondsUntilMidnightUTC()
 
 	globalKey := "kli:gemini:global"
@@ -199,7 +198,7 @@ type geminiGenerateResponse struct {
 // Falls back to SQL search if quota is reached or Gemini is unavailable.
 func interpretQuery(ctx context.Context, query, ip string) (QueryIntent, error) {
 	// Check quota before calling Gemini
-	allowed, err := geminiQuotaAllow(ip)
+	allowed, err := geminiQuotaAllow(ctx, ip)
 	if err != nil {
 		return QueryIntent{}, fmt.Errorf("quota check error: %v", err)
 	}

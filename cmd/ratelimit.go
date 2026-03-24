@@ -105,7 +105,9 @@ func cleanupVisitors() {
 			}
 			visitorsMu.Lock()
 			for _, ip := range stale[i:end] {
-				delete(visitors, ip)
+				if v, ok := visitors[ip]; ok && time.Since(v.lastSeen) > 10*time.Minute {
+					delete(visitors, ip)
+				}
 			}
 			visitorsMu.Unlock()
 
