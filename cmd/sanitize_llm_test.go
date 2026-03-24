@@ -29,9 +29,9 @@ func TestSanitizeForLLM_EliminaCaracterePericuloase(t *testing.T) {
 			expected: "kubectl exec pod",
 		},
 		{
-			// Verifica limita de 5 cuvinte
-			input:    "one two three four five six seven",
-			expected: "one two three four five",
+			// Verifica limita de 10 cuvinte
+			input:    "one two three four five six seven eight nine ten eleven twelve",
+			expected: "one two three four five six seven eight nine ten",
 		},
 	}
 
