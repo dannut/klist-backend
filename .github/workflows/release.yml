@@ -32,7 +32,7 @@ jobs:
       - uses: docker/metadata-action@v5
         id: meta
         with:
-          images: ghcr.io/dannut/klist-frontend
+          images: ghcr.io/dannut/klist-backend
           tags: |
             # add "v" for Git compatibility (e.g. v1.0.0):
             type=semver,pattern=v{{version}}
