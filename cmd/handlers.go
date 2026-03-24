@@ -198,7 +198,7 @@ var installScript string
 func installScriptHandler(c *gin.Context) {
 	c.Header("Content-Type", "text/plain; charset=utf-8")
 	c.Header("Content-Disposition", "inline; filename=\"install.sh\"")
-	c.String(http.StatusOK, installScript)
+	c.String(http.StatusOK, "%s", installScript)
 }
 
 // ── CLI releases ──────────────────────────────────────────────────────────────
