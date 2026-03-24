@@ -225,17 +225,15 @@ Query: %s`, query)
 		},
 	})
 
-	url := fmt.Sprintf(
-		"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=%s",
-		geminiAPIKey(),
-	)
+	const intentURL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent"
 
 	// Use context-aware request — if client disconnects, HTTP call is cancelled
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(reqBody))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, intentURL, bytes.NewReader(reqBody))
 	if err != nil {
 		return QueryIntent{}, fmt.Errorf("gemini request build error: %v", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-goog-api-key", geminiAPIKey())
 
 	resp, err := geminiClient.Do(req)
 	if err != nil {
@@ -300,17 +298,15 @@ func getEmbedding(ctx context.Context, text string) ([]float32, error) {
 		OutputDimensionality: 768,
 	})
 
-	url := fmt.Sprintf(
-		"https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=%s",
-		geminiAPIKey(),
-	)
+	const embedURL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent"
 
 	// Use context-aware request — cancelled if client disconnects
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(reqBody))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, embedURL, bytes.NewReader(reqBody))
 	if err != nil {
 		return nil, fmt.Errorf("gemini embed request build error: %v", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-goog-api-key", geminiAPIKey())
 
 	resp, err := geminiClient.Do(req)
 	if err != nil {
