@@ -100,6 +100,8 @@ func securityHeaders() gin.HandlerFunc {
 		c.Header("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
 		c.Header("Cross-Origin-Opener-Policy", "same-origin")
 		c.Header("Cross-Origin-Resource-Policy", "same-origin")
+		// API-only server: deny all resource loading
+		c.Header("Content-Security-Policy", "default-src 'none'")
 		if hstsEnabled {
 			c.Header("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
 		}
