@@ -34,13 +34,19 @@ func redisRateAllow(ip string) (bool, error) {
 	key := fmt.Sprintf("kli:rate:%s", ip)
 	ctx := context.Background()
 
-	// Sliding window using INCR + EXPIRE
+	// Fix: use Pipeline but only set Expire when key is NEW (incr == 1).
+	// Previously Expire was called on every request, resetting the TTL window
+	// and allowing a persistent spammer to never hit the limit.
 	var pipe redis.Pipeliner = rdb.Pipeline()
 	incr := pipe.Incr(ctx, key)
-	pipe.Expire(ctx, key, rateWindow)
 	_, err := pipe.Exec(ctx)
 	if err != nil {
 		return false, err
+	}
+
+	// Set TTL only on first request — key expires naturally after rateWindow
+	if incr.Val() == 1 {
+		rdb.Expire(ctx, key, rateWindow)
 	}
 
 	return incr.Val() <= int64(rateRequests), nil
@@ -71,16 +77,46 @@ func getVisitor(ip string) *rate.Limiter {
 	return v.limiter
 }
 
+// cleanupVisitors removes stale in-memory rate limiters.
+// Fix: collect stale IPs under a short lock, then delete in batches
+// without holding the lock during iteration — prevents blocking all
+// requests during cleanup when map is large (e.g. under DDoS attack).
 func cleanupVisitors() {
 	for {
 		time.Sleep(5 * time.Minute)
+
+		// Phase 1: collect stale IPs under lock (fast — just reads)
 		visitorsMu.Lock()
+		stale := make([]string, 0)
 		for ip, v := range visitors {
 			if time.Since(v.lastSeen) > 10*time.Minute {
-				delete(visitors, ip)
+				stale = append(stale, ip)
 			}
 		}
 		visitorsMu.Unlock()
+
+		// Phase 2: delete in small batches — lock released between batches
+		// so incoming requests are never blocked during cleanup
+		const batchSize = 100
+		for i := 0; i < len(stale); i += batchSize {
+			end := i + batchSize
+			if end > len(stale) {
+				end = len(stale)
+			}
+			visitorsMu.Lock()
+			for _, ip := range stale[i:end] {
+				delete(visitors, ip)
+			}
+			visitorsMu.Unlock()
+
+			if end < len(stale) {
+				time.Sleep(time.Millisecond)
+			}
+		}
+
+		if len(stale) > 0 {
+			log.Printf("rate limit cleanup: removed %d stale visitors", len(stale))
+		}
 	}
 }
 

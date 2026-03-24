@@ -5,10 +5,10 @@
 
 set -e
 
-KLI_VERSION="1.0.0"
+KLI_VERSION="2.0.0"
 INSTALL_DIR="$HOME/.local/bin"
 BINARY_NAME="kli"
-BASE_URL="https://test.kli.st/releases"
+BASE_URL="https://kli.st/releases"
 # SHA256SUMS file is published alongside binaries at each release
 SUMS_URL="${BASE_URL}/SHA256SUMS"
 
