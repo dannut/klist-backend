@@ -8,7 +8,7 @@ import (
 )
 
 const defaultAPI = "https://kli.st"
-const version    = "1.0.0"
+const version    = "2.0.3"
 
 func main() {
 	apiURL := flag.String("api", defaultAPI, "Backend API URL")
@@ -65,6 +65,6 @@ Examples:
   kli search git commit
 
 Options:
-  --api <url>   Backend URL (default: http://localhost:8080)
+  --api <url>   Backend URL (default: https://kli.st)
 `)
 }
