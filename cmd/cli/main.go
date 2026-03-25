@@ -12,6 +12,7 @@ const version    = "2.0.3"
 
 func main() {
 	apiURL := flag.String("api", defaultAPI, "Backend API URL")
+	page := flag.Int("page", 1, "Page number for results")
 	flag.Parse()
 	args := flag.Args()
 
@@ -28,12 +29,12 @@ func main() {
 		}
 		query := strings.Join(args[1:], " ")
 		query = strings.TrimPrefix(query, "tool=")
-		cmds, err := fetchCommands(*apiURL, query)
+		cmds, err := fetchCommands(*apiURL, query, *page)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
-		displayResults(cmds, query)
+		displayResults(cmds, query, *page)
 
 	case "version", "-v", "--version":
 		fmt.Println("kli version " + version)
