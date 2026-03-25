@@ -1,0 +1,54 @@
+name: Pipeline 1 — CI & Auto-promote dev → staging
+
+on:
+  push:
+    branches:
+      - dev
+    paths:
+      - 'cmd/**'
+      - 'scripts/install.sh'
+
+concurrency:
+  group: auto-promote-backend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  test:
+    name: Lint & Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: cmd/go.mod
+          cache: true
+
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --timeout=5m
+          working-directory: cmd
+
+      - name: Unit tests
+        working-directory: cmd
+        run: go test -v -race -count=1 -timeout=60s ./...
+
+  promote:
+    name: Promote dev → staging
+    runs-on: ubuntu-latest
+    needs: test
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.INFRA_TOKEN }}
+
+      - name: Push dev to staging
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git push origin HEAD:staging

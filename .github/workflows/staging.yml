@@ -67,7 +67,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          (cd k8s/overlays/staging && kustomize edit set image ghcr.io/dannut/klist-backend=staging-${SHORT_SHA})
+          (cd k8s/overlays/staging && kustomize edit set image ghcr.io/dannut/klist-backend:staging-${SHORT_SHA})
 
           git add k8s/overlays/staging/kustomization.yaml
           git diff --quiet && git diff --staged --quiet || git commit -m "ci: update backend image to staging-${SHORT_SHA}"
