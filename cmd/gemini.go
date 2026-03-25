@@ -19,12 +19,12 @@ var geminiClient = &http.Client{
 	Timeout: 15 * time.Second,
 }
 
-func geminiAPIKey() string {
+func geminiAPIKey() (string, error) {
 	key := os.Getenv("GEMINI_API_KEY")
 	if key == "" {
-		slog.Error("GEMINI_API_KEY not set"); os.Exit(1)
+		return "", fmt.Errorf("GEMINI_API_KEY not set")
 	}
-	return key
+	return key, nil
 }
 
 // ── Prompt injection protection ───────────────────────────────────────────────
@@ -229,8 +229,12 @@ Query: %s`, query)
 	if err != nil {
 		return QueryIntent{}, fmt.Errorf("gemini request build error: %v", err)
 	}
+	apiKey, err := geminiAPIKey()
+	if err != nil {
+		return QueryIntent{}, err
+	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-goog-api-key", geminiAPIKey())
+	req.Header.Set("x-goog-api-key", apiKey)
 
 	resp, err := geminiClient.Do(req)
 	if err != nil {
@@ -302,8 +306,12 @@ func getEmbedding(ctx context.Context, text string) ([]float32, error) {
 	if err != nil {
 		return nil, fmt.Errorf("gemini embed request build error: %v", err)
 	}
+	apiKey, err := geminiAPIKey()
+	if err != nil {
+		return nil, err
+	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-goog-api-key", geminiAPIKey())
+	req.Header.Set("x-goog-api-key", apiKey)
 
 	resp, err := geminiClient.Do(req)
 	if err != nil {

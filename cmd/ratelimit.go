@@ -46,7 +46,9 @@ func redisRateAllow(ip string) (bool, error) {
 
 	// Set TTL only on first request — key expires naturally after rateWindow
 	if incr.Val() == 1 {
-		rdb.Expire(ctx, key, rateWindow)
+		if err := rdb.Expire(ctx, key, rateWindow).Err(); err != nil {
+			slog.Warn("rate limit: failed to set key TTL", "key", key, "err", err)
+		}
 	}
 
 	return incr.Val() <= int64(rateRequests), nil

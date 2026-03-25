@@ -77,6 +77,7 @@ const (
 	maxPerPage     = 50
 	maxPage        = 100 // prevent absurd page numbers
 	searchTimeout  = 30 * time.Second
+	minVectorScore = 0.6 // minimum cosine similarity to return a vector result
 )
 
 func searchHandler(c *gin.Context) {
@@ -187,7 +188,7 @@ func performVectorSearch(ctx context.Context, q string, page, perPage int) ([]Co
 		return nil, err
 	}
 
-	if len(res) == 0 || res[0].Score < 0.6 {
+	if len(res) == 0 || res[0].Score < minVectorScore {
 		return nil, errNoResults
 	}
 
@@ -227,9 +228,8 @@ func clusterOnlyMiddleware() gin.HandlerFunc {
 var installScript string
 
 func installScriptHandler(c *gin.Context) {
-	c.Header("Content-Type", "text/plain; charset=utf-8")
 	c.Header("Content-Disposition", "inline; filename=\"install.sh\"")
-	c.String(http.StatusOK, "%s", installScript)
+	c.Data(http.StatusOK, "text/plain; charset=utf-8", []byte(installScript))
 }
 
 // ── CLI releases ──────────────────────────────────────────────────────────────
