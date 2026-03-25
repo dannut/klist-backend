@@ -92,15 +92,21 @@ jobs:
           GH_TOKEN: ${{ secrets.INFRA_TOKEN }}
         run: |
           VERSION=${{ github.ref_name }}
-          
-          git checkout -b deploy-backend-${VERSION} 
-          sed -i "s|image: ghcr.io/dannut/klist-backend:.*|image: ghcr.io/dannut/klist-backend:${VERSION}|g" k8s/production/04-backend.yaml
+
+          git checkout -b deploy-backend-${VERSION}
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add k8s/production/04-backend.yaml
-          git diff --quiet && git diff --staged --quiet || git commit -m "ci: deploy backend ${VERSION} to production"
+
+          cd k8s/overlays/production
+          kustomize edit set image ghcr.io/dannut/klist-backend=${VERSION}
+          cd ../../overlays/gcp-dr
+          kustomize edit set image ghcr.io/dannut/klist-backend=${VERSION}
+          cd ../..
+
+          git add k8s/overlays/production/kustomization.yaml k8s/overlays/gcp-dr/kustomization.yaml
+          git diff --quiet && git diff --staged --quiet || git commit -m "ci: deploy backend ${VERSION} to production + gcp-dr"
           git push origin deploy-backend-${VERSION}
-          gh pr create --title "Deploy Backend ${VERSION} to production" --body "Automated PR created by GitHub Actions. Aprobă acest PR pentru a face deploy la Backend în producție." --base main --head deploy-backend-${VERSION}
+          gh pr create --title "Deploy Backend ${VERSION} to production" --body "Automated PR — backend ${VERSION} → production + gcp-dr" --base main --head deploy-backend-${VERSION}
 
   notify-success:
     name: Notify Success
