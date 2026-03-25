@@ -181,7 +181,7 @@ func requestIDMiddleware() gin.HandlerFunc {
 		id := c.GetHeader("X-Request-ID")
 		if id == "" {
 			b := make([]byte, 8)
-			rand.Read(b) //nolint:errcheck — crypto/rand never errors on supported platforms
+			_, _ = rand.Read(b)
 			id = hex.EncodeToString(b)
 		}
 		c.Header("X-Request-ID", id)
