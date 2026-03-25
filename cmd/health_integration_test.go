@@ -9,6 +9,7 @@ import (
 	"testing"
 )
 
+
 // Test 4
 // Nume: TestHealthEndpoint_ReturneazaUP
 // Ce verifica: ca endpoint-ul /health de pe Staging returneaza status "UP"
