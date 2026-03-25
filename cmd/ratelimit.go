@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
@@ -117,7 +117,7 @@ func cleanupVisitors() {
 		}
 
 		if len(stale) > 0 {
-			log.Printf("rate limit cleanup: removed %d stale visitors", len(stale))
+			slog.Info("rate limit cleanup: removed stale visitors", "count", len(stale))
 		}
 	}
 }
@@ -132,7 +132,7 @@ func rateLimitMiddleware() gin.HandlerFunc {
 		allowed, err := redisRateAllow(ip)
 		if err != nil {
 			// Redis unavailable — fall back to in-memory
-			log.Printf("rate limit: redis fallback for %s: %v", ip, err)
+			slog.Warn("rate limit: redis fallback to in-memory", "ip", ip, "err", err)
 			if !getVisitor(ip).Allow() {
 				tooManyRequests(c)
 				return

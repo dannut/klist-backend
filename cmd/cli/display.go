@@ -8,45 +8,60 @@ import (
 	"golang.org/x/term"
 )
 
-const (
-	colorReset  = "\033[0m"
-	colorBlue   = "\033[34m"
-	colorGreen  = "\033[32m"
-	colorYellow = "\033[33m"
-	colorGray   = "\033[90m"
-	colorBold   = "\033[1m"
-)
+const syntaxCol = 36
 
-func displayResults(cmds []Command, query string) {
+func displayResults(cmds []Command, query string, page int) {
 	if len(cmds) == 0 {
 		fmt.Printf("\n  No results for %q\n\n", query)
 		return
 	}
 
 	width := termWidth()
-	sep := strings.Repeat("─", width)
+	rule := strings.Repeat("─", width)
 
-	// Show result count
-	fmt.Printf("\n%s%s kli.st — %d results for %q%s\n", colorBold, colorBlue, len(cmds), query, colorReset)
-	fmt.Println(colorGray + sep + colorReset)
+	fmt.Printf("\n%s\n", rule)
+	fmt.Printf("  kli.st  %d results for %q", len(cmds), query)
+	if page > 1 {
+		fmt.Printf("  (page %d)", page)
+	}
+	fmt.Printf("\n%s\n\n", rule)
 
-	for _, cmd := range cmds {
-		fmt.Printf("  %s%s%s\n", colorBlue, cmd.Syntax, colorReset)
-		fmt.Printf("  %s%s%s\n", colorGray, cmd.Description, colorReset)
-		fmt.Printf("  %s[%s]%s\n", colorYellow, cmd.Tool, colorReset)
-		fmt.Println(colorGray + strings.Repeat("·", width) + colorReset)
+	descWidth := width - syntaxCol - 8
+	if descWidth < 20 {
+		descWidth = 20
 	}
 
-	// Summary line at the end for long results
-	if len(cmds) >= 50 {
-		fmt.Printf("%s%s  %d results total%s\n\n", colorBold, colorGreen, len(cmds), colorReset)
-	} else {
-		fmt.Println()
+	for _, cmd := range cmds {
+		syntax := cmd.Syntax
+		if len(syntax) > syntaxCol-1 {
+			syntax = syntax[:syntaxCol-4] + "..."
+		}
+
+		desc := cmd.Description
+		if len(desc) > descWidth {
+			desc = desc[:descWidth-3] + "..."
+		}
+
+		fmt.Printf("  %-*s — %-*s  [%s]\n",
+			syntaxCol, syntax,
+			descWidth, desc,
+			cmd.Tool,
+		)
+	}
+
+	fmt.Println()
+
+	if len(cmds) == 25 {
+		fmt.Printf("  — more results available, use: kli search %q --page %d\n\n",
+			query, page+1)
 	}
 }
 
 func termWidth() int {
 	if w, _, err := term.GetSize(int(os.Stdout.Fd())); err == nil && w > 20 {
+		if w > 120 {
+			return 120
+		}
 		return w
 	}
 	return 80

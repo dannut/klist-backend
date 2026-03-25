@@ -23,8 +23,8 @@ var httpClient = &http.Client{
 
 const maxBodySize = 5 * 1024 * 1024 // 5MB
 
-func fetchCommands(apiURL, query string) ([]Command, error) {
-	endpoint := fmt.Sprintf("%s/api/search?q=%s", apiURL, url.QueryEscape(query))
+func fetchCommands(apiURL, query string, page int) ([]Command, error) {
+	endpoint := fmt.Sprintf("%s/api/search?q=%s&per_page=25&page=%d", apiURL, url.QueryEscape(query), page)
 
 	resp, err := httpClient.Get(endpoint)
 	if err != nil {

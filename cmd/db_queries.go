@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 )
 
@@ -14,13 +14,13 @@ import (
 func searchVector(ctx context.Context, q string, page, perPage int) ([]Command, error) {
 	var count int
 	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM commands WHERE embedding IS NOT NULL").Scan(&count); err != nil || count == 0 {
-		log.Printf("vector search: no embeddings in DB, falling back to SQL")
+		slog.Info("vector search: no embeddings in DB, falling back to SQL")
 		return searchDB(ctx, q, page, perPage)
 	}
 
 	embedding, err := getEmbedding(ctx, q)
 	if err != nil {
-		log.Printf("vector search failed, falling back to SQL: %v", err)
+		slog.Warn("vector search failed, falling back to SQL", "err", err)
 		return searchDB(ctx, q, page, perPage)
 	}
 
@@ -129,7 +129,7 @@ func queryDBContext(ctx context.Context, sql string, args ...interface{}) ([]Com
 	for rows.Next() {
 		var cmd Command
 		if err := rows.Scan(&cmd.Tool, &cmd.Syntax, &cmd.Description, &cmd.Score); err != nil {
-			log.Printf("scan error: %v", err)
+			slog.Error("db scan error", "err", err)
 			continue
 		}
 		results = append(results, cmd)

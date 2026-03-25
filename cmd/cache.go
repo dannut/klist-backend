@@ -5,7 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -28,11 +28,11 @@ func initCache() {
 
 	if err := rdb.Ping(ctx).Err(); err != nil {
 		// Cache is optional — app runs without it, just slower
-		log.Printf("WARNING: Redis unavailable at %s — running without cache: %v", addr, err)
+		slog.Warn("Redis unavailable — running without cache", "addr", addr, "err", err)
 		rdb = nil
 		return
 	}
-	log.Printf("Connected to Redis at %s", addr)
+	slog.Info("Connected to Redis", "addr", addr)
 }
 
 // cacheKey builds a privacy-safe cache key using SHA256 of the query.
@@ -68,7 +68,7 @@ func cacheSet(key string, results []Command) {
 		return
 	}
 	if err := rdb.Set(ctx, key, data, cacheTTL).Err(); err != nil {
-		log.Printf("cache write error: %v", err)
+		slog.Warn("cache write error", "err", err)
 	}
 }
 
@@ -83,7 +83,7 @@ func cacheInvalidate() {
 	for {
 		keys, nextCursor, err := rdb.Scan(ctx, cursor, "kli:search:*", 100).Result()
 		if err != nil {
-			log.Printf("cache invalidate scan error: %v", err)
+			slog.Warn("cache invalidate scan error", "err", err)
 			return
 		}
 		if len(keys) > 0 {
@@ -95,5 +95,5 @@ func cacheInvalidate() {
 			break
 		}
 	}
-	log.Printf("Cache invalidated: %d keys removed", deleted)
+	slog.Info("Cache invalidated", "keys_removed", deleted)
 }
