@@ -16,7 +16,6 @@ import (
 const cacheTTL = 24 * time.Hour
 
 var rdb *redis.Client
-var ctx = context.Background()
 
 func initCache() {
 	addr := getenv("REDIS_URL", "redis.kli.svc.cluster.local:6379")
@@ -26,7 +25,7 @@ func initCache() {
 		DB:       0,
 	})
 
-	if err := rdb.Ping(ctx).Err(); err != nil {
+	if err := rdb.Ping(context.Background()).Err(); err != nil {
 		// Cache is optional — app runs without it, just slower
 		slog.Warn("Redis unavailable — running without cache", "addr", addr, "err", err)
 		rdb = nil
@@ -47,6 +46,7 @@ func cacheGet(key string) []Command {
 	if rdb == nil {
 		return nil
 	}
+	ctx := context.Background()
 	val, err := rdb.Get(ctx, key).Result()
 	if err != nil {
 		return nil // cache miss
@@ -67,6 +67,7 @@ func cacheSet(key string, results []Command) {
 	if err != nil {
 		return
 	}
+	ctx := context.Background()
 	if err := rdb.Set(ctx, key, data, cacheTTL).Err(); err != nil {
 		slog.Warn("cache write error", "err", err)
 	}
@@ -78,6 +79,7 @@ func cacheInvalidate() {
 	if rdb == nil {
 		return
 	}
+	ctx := context.Background()
 	var cursor uint64
 	var deleted int
 	for {
