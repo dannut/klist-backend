@@ -97,11 +97,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          cd k8s/overlays/production
-          kustomize edit set image ghcr.io/dannut/klist-backend=${VERSION}
-          cd ../../overlays/gcp-dr
-          kustomize edit set image ghcr.io/dannut/klist-backend=${VERSION}
-          cd ../..
+          (cd k8s/overlays/production && kustomize edit set image ghcr.io/dannut/klist-backend=${VERSION})
+          (cd k8s/overlays/gcp-dr && kustomize edit set image ghcr.io/dannut/klist-backend=${VERSION})
 
           git add k8s/overlays/production/kustomization.yaml k8s/overlays/gcp-dr/kustomization.yaml
           git diff --quiet && git diff --staged --quiet || git commit -m "ci: deploy backend ${VERSION} to production + gcp-dr"

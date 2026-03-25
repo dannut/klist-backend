@@ -8,9 +8,9 @@ import (
 )
 
 const defaultAPI = "https://kli.st"
-const version    = "2.0.3"
 
 func main() {
+	flag.Usage = printHelp
 	apiURL := flag.String("api", defaultAPI, "Backend API URL")
 	page := flag.Int("page", 1, "Page number for results")
 	flag.Parse()
@@ -36,9 +36,6 @@ func main() {
 		}
 		displayResults(cmds, query, *page)
 
-	case "version", "-v", "--version":
-		fmt.Println("kli version " + version)
-
 	case "help", "-h", "--help":
 		printHelp()
 
@@ -51,21 +48,31 @@ func main() {
 
 func printHelp() {
 	fmt.Print(`
-kli — kli.st CLI tool v` + version + `
+kli — instant search for DevOps CLI commands
+5000+ commands across 20 tools, accessible from your terminal.
 
-Usage:
-  kli search <term>          Search commands
-  kli search tool=<name>     Search by tool name
-  kli version                Show version
-  kli help                   Show this help
+USAGE
+  kli <command> [flags]
 
-Examples:
-  kli search docker
-  kli search "list containers"
-  kli search tool=kubernetes
-  kli search git commit
+COMMANDS
+  search, s   Search commands by tool name or keyword
 
-Options:
-  --api <url>   Backend URL (default: https://kli.st)
+FLAGS
+  --page <n>    Page number for paginated results  (default: 1)
+  --api  <url>  Override the backend API URL       (default: https://kli.st)
+
+EXAMPLES
+  kli search docker                      all docker commands
+  kli search "list running containers"   natural language search
+  kli search tool=kubernetes             filter by tool
+  kli search git commit                  multi-word search
+  kli search nginx --page 2              paginate results
+
+SUPPORTED TOOLS
+  docker   kubectl  git       terraform  aws     gcloud
+  helm     ansible  linux     nginx      bash    vim
+  psql     redis    mongo     aws        pip     npm  ...
+
+  https://kli.st
 `)
 }
