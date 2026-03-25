@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -22,7 +22,7 @@ var geminiClient = &http.Client{
 func geminiAPIKey() string {
 	key := os.Getenv("GEMINI_API_KEY")
 	if key == "" {
-		log.Fatal("GEMINI_API_KEY environment variable is not set")
+		slog.Error("GEMINI_API_KEY not set"); os.Exit(1)
 	}
 	return key
 }
@@ -76,7 +76,7 @@ func validateTool(tool string) string {
 	).Scan(&exists); err == nil && exists {
 		return tool
 	}
-	log.Printf("gemini returned unknown tool %q — discarding", tool)
+	slog.Warn("gemini returned unknown tool", "tool", tool)
 	return ""
 }
 
@@ -123,16 +123,14 @@ func geminiQuotaAllow(ctx context.Context, ip string) (bool, error) {
 	// Check global cap first (cheaper: avoids per-IP check when quota is full)
 	globalCount, err := rdb.Get(ctx, globalKey).Int64()
 	if err == nil && globalCount >= geminiDailyGlobalCap {
-		log.Printf("gemini quota: global daily cap reached (%d/%d) — falling back to SQL",
-			globalCount, geminiDailyGlobalCap)
+		slog.Info("gemini quota: global cap reached", "count", globalCount, "cap", geminiDailyGlobalCap)
 		return false, nil
 	}
 
 	// Check per-IP cap
 	ipCount, err := rdb.Get(ctx, ipKey).Int64()
 	if err == nil && ipCount >= geminiDailyPerIPCap {
-		log.Printf("gemini quota: per-IP cap reached for %s (%d/%d) — falling back to SQL",
-			ip, ipCount, geminiDailyPerIPCap)
+		slog.Info("gemini quota: per-IP cap reached", "ip", ip, "count", ipCount, "cap", geminiDailyPerIPCap)
 		return false, nil
 	}
 
@@ -144,17 +142,17 @@ func geminiQuotaAllow(ctx context.Context, ip string) (bool, error) {
 	pipe.ExpireNX(ctx, ipKey, ttl)
 	if _, err := pipe.Exec(ctx); err != nil {
 		// Redis write failed — allow the call (fail open)
-		log.Printf("gemini quota: redis pipeline error: %v — allowing call", err)
+		slog.Warn("gemini quota: redis pipeline error — allowing call", "err", err)
 		return true, nil
 	}
 
 	// Double-check after increment (race condition safety)
 	if incrGlobal.Val() > geminiDailyGlobalCap {
-		log.Printf("gemini quota: global cap exceeded after increment — falling back to SQL")
+		slog.Info("gemini quota: global cap exceeded after increment — falling back to SQL")
 		return false, nil
 	}
 	if incrIP.Val() > geminiDailyPerIPCap {
-		log.Printf("gemini quota: per-IP cap exceeded after increment for %s — falling back to SQL", ip)
+		slog.Info("gemini quota: per-IP cap exceeded after increment — falling back to SQL", "ip", ip)
 		return false, nil
 	}
 
@@ -242,7 +240,7 @@ Query: %s`, query)
 
 	// 429 = quota exceeded at Google side — fall back gracefully
 	if resp.StatusCode == http.StatusTooManyRequests {
-		log.Printf("gemini: 429 received — falling back to SQL")
+		slog.Warn("gemini: 429 received — falling back to SQL")
 		return QueryIntent{}, fmt.Errorf("gemini rate limited (429) — falling back to SQL")
 	}
 
@@ -271,7 +269,7 @@ Query: %s`, query)
 	intent.Tool = validateTool(strings.ToLower(strings.TrimSpace(intent.Tool)))
 	intent.Keyword = strings.ToLower(strings.TrimSpace(intent.Keyword))
 
-	log.Printf("gemini intent: tool=%q keyword=%q", intent.Tool, intent.Keyword)
+	slog.Info("gemini intent parsed", "tool", intent.Tool, "keyword", intent.Keyword)
 	return intent, nil
 }
 

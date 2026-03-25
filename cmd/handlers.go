@@ -4,8 +4,10 @@ import (
 	_ "embed"
 	"context"
 	"errors"
-	"log"
+	"log/slog"
+	"net"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -31,7 +33,8 @@ func versionHandler(c *gin.Context) {
 
 type healthCache struct {
 	mu      sync.Mutex
-	status  bool
+	dbOK    bool
+	redisOK bool
 	checked time.Time
 }
 
@@ -42,17 +45,27 @@ func healthHandler(c *gin.Context) {
 	defer health.mu.Unlock()
 
 	if time.Since(health.checked) > 5*time.Second {
-		health.status = db.Ping() == nil
+		health.dbOK = db.Ping() == nil
+		health.redisOK = rdb == nil || rdb.Ping(context.Background()).Err() == nil
 		health.checked = time.Now()
 	}
 
-	if !health.status {
+	if !health.dbOK {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
 			"status": "DOWN", "service": "kli.st", "error": "database unreachable",
 		})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"status": "UP", "service": "kli.st"})
+
+	redisStatus := "UP"
+	if rdb != nil && !health.redisOK {
+		redisStatus = "DOWN"
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"status":  "UP",
+		"service": "kli.st",
+		"redis":   redisStatus,
+	})
 }
 
 // ── Search handler ────────────────────────────────────────────────────────────
@@ -61,6 +74,8 @@ const (
 	defaultPage    = 1
 	defaultPerPage = 10
 	maxPerPage     = 50
+	maxPage        = 100 // prevent absurd page numbers
+	searchTimeout  = 30 * time.Second
 )
 
 func searchHandler(c *gin.Context) {
@@ -86,6 +101,9 @@ func searchHandler(c *gin.Context) {
 	if page < 1 {
 		page = defaultPage
 	}
+	if page > maxPage {
+		page = maxPage
+	}
 	if perPage < 1 || perPage > maxPerPage {
 		perPage = defaultPerPage
 	}
@@ -98,7 +116,11 @@ func searchHandler(c *gin.Context) {
 		return
 	}
 
-	results, err := search(c.Request.Context(), q, c.ClientIP(), page, perPage)
+	// Enforce a hard timeout on the entire search path (Gemini + DB)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), searchTimeout)
+	defer cancel()
+
+	results, err := search(ctx, q, c.ClientIP(), page, perPage)
 	if err != nil {
 		if errors.Is(err, errNoResults) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "no commands found matching your search criteria"})
@@ -128,7 +150,7 @@ func search(ctx context.Context, q, ip string, page, perPage int) ([]Command, er
 
 	intent, err := interpretQuery(ctx, sanitized, ip)
 	if err != nil {
-		log.Printf("AI interpret failed, falling back to vector: %v", err)
+		slog.Warn("AI interpret failed, falling back to vector", "err", err)
 		return performVectorSearch(ctx, q, page, perPage)
 	}
 
@@ -178,10 +200,18 @@ func adminCacheInvalidateHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "cache invalidated"})
 }
 
+// clusterOnlyMiddleware allows only requests from private/loopback CIDRs.
+// Uses proper IP parsing instead of string prefix matching.
+var (
+	_, cidr10, _  = net.ParseCIDR("10.0.0.0/8")
+	_, cidr172, _ = net.ParseCIDR("172.16.0.0/12")
+	_, cidr192, _ = net.ParseCIDR("192.168.0.0/16")
+)
+
 func clusterOnlyMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ip := c.ClientIP()
-		if !strings.HasPrefix(ip, "10.") && ip != "127.0.0.1" {
+		ip := net.ParseIP(c.ClientIP())
+		if ip == nil || (!cidr10.Contains(ip) && !cidr172.Contains(ip) && !cidr192.Contains(ip) && !ip.IsLoopback()) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
 			c.Abort()
 			return
@@ -204,7 +234,7 @@ func installScriptHandler(c *gin.Context) {
 // ── CLI releases ──────────────────────────────────────────────────────────────
 
 func releasesHandler(c *gin.Context) {
-	filename := c.Param("file")
+	filename := filepath.Base(c.Param("file")) // prevent path traversal
 
 	allowed := map[string]string{
 		"kli-linux-amd64":  "application/octet-stream",
@@ -220,10 +250,10 @@ func releasesHandler(c *gin.Context) {
 		return
 	}
 
-	filepath := "/releases/" + filename
+	filePath := "/releases/" + filename
 	c.Header("Content-Type", contentType)
 	c.Header("Content-Disposition", "attachment; filename=\""+filename+"\"")
-	c.File(filepath)
+	c.File(filePath)
 }
 
 func parseIntParam(s string, fallback int) int {

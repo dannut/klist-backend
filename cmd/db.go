@@ -3,7 +3,8 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"log"
+	"log/slog"
+	"os"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -31,7 +32,8 @@ func initDB() {
 	var err error
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {
-		log.Fatal("DB open error:", err)
+		slog.Error("DB open error", "err", err)
+		os.Exit(1)
 	}
 
 	// Connection pool limits — prevents exhausting PostgreSQL under load
@@ -40,7 +42,8 @@ func initDB() {
 	db.SetConnMaxLifetime(5 * time.Minute)
 
 	if err = db.Ping(); err != nil {
-		log.Fatal("DB ping failed:", err)
+		slog.Error("DB ping failed", "err", err)
+		os.Exit(1)
 	}
-	log.Printf("Connected to PostgreSQL (sslmode=%s)", sslmode)
+	slog.Info("Connected to PostgreSQL", "sslmode", sslmode)
 }

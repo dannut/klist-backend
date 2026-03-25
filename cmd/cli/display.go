@@ -8,30 +8,21 @@ import (
 	"golang.org/x/term"
 )
 
-const (
-	colorReset = "\033[0m"
-	colorCyan  = "\033[36m"
-	colorGray  = "\033[90m"
-	colorBold  = "\033[1m"
-	colorDim   = "\033[2m"
-)
-
 const syntaxCol = 36
 
 func displayResults(cmds []Command, query string, page int) {
 	if len(cmds) == 0 {
-		fmt.Printf("\n  %sNo results for %q%s\n\n", colorGray, query, colorReset)
+		fmt.Printf("\n  No results for %q\n\n", query)
 		return
 	}
 
 	width := termWidth()
-	rule := colorDim + colorGray + strings.Repeat("─", width) + colorReset
+	rule := strings.Repeat("─", width)
 
 	fmt.Printf("\n%s\n", rule)
-	fmt.Printf("  %skli.st%s  %d results for %q",
-		colorBold+colorCyan, colorReset, len(cmds), query)
+	fmt.Printf("  kli.st  %d results for %q", len(cmds), query)
 	if page > 1 {
-		fmt.Printf("  %s(page %d)%s", colorDim+colorGray, page, colorReset)
+		fmt.Printf("  (page %d)", page)
 	}
 	fmt.Printf("\n%s\n\n", rule)
 
@@ -51,19 +42,18 @@ func displayResults(cmds []Command, query string, page int) {
 			desc = desc[:descWidth-3] + "..."
 		}
 
-		fmt.Printf("  %s%-*s%s %s—%s %s%-*s%s  %s[%s]%s\n",
-			colorBold+colorCyan, syntaxCol, syntax, colorReset,
-			colorGray, colorReset,
-			colorGray, descWidth, desc, colorReset,
-			colorDim+colorGray, cmd.Tool, colorReset,
+		fmt.Printf("  %-*s — %-*s  [%s]\n",
+			syntaxCol, syntax,
+			descWidth, desc,
+			cmd.Tool,
 		)
 	}
 
 	fmt.Println()
 
-	if len(cmds) == 50 {
-		fmt.Printf("  %s— more results available, use: kli search %q --page %d%s\n\n",
-			colorDim+colorGray, query, page+1, colorReset)
+	if len(cmds) == 25 {
+		fmt.Printf("  — more results available, use: kli search %q --page %d\n\n",
+			query, page+1)
 	}
 }
 
