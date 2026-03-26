@@ -8,7 +8,7 @@ import (
 	"golang.org/x/term"
 )
 
-const syntaxCol = 36
+const syntaxCol = 40
 
 func displayResults(cmds []Command, query string, page int) {
 	if len(cmds) == 0 {
@@ -26,7 +26,7 @@ func displayResults(cmds []Command, query string, page int) {
 	}
 	fmt.Printf("\n%s\n\n", rule)
 
-	descWidth := width - syntaxCol - 8
+	descWidth := width - syntaxCol - 12
 	if descWidth < 20 {
 		descWidth = 20
 	}
@@ -42,7 +42,7 @@ func displayResults(cmds []Command, query string, page int) {
 			desc = desc[:descWidth-3] + "..."
 		}
 
-		fmt.Printf("  %-*s — %-*s  [%s]\n",
+		fmt.Printf("  %-*s   —   %-*s  [%s]\n",
 			syntaxCol, syntax,
 			descWidth, desc,
 			cmd.Tool,

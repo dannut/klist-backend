@@ -78,7 +78,11 @@ jobs:
           (cd k8s/overlays/production && kustomize edit set image ghcr.io/dannut/klist-backend:${VERSION})
           (cd k8s/overlays/gcp-dr && kustomize edit set image ghcr.io/dannut/klist-backend:${VERSION})
 
-          git add k8s/overlays/production/kustomization.yaml k8s/overlays/gcp-dr/kustomization.yaml
+          sed -i "s/version: \"v[^\"]*\"/version: \"${VERSION}\"/" k8s/overlays/production/app-version.yaml
+          sed -i "s/version: \"v[^\"]*\"/version: \"${VERSION}\"/" k8s/overlays/gcp-dr/app-version.yaml
+
+          git add k8s/overlays/production/kustomization.yaml k8s/overlays/gcp-dr/kustomization.yaml \
+                  k8s/overlays/production/app-version.yaml k8s/overlays/gcp-dr/app-version.yaml
           git diff --quiet && git diff --staged --quiet || git commit -m "ci: deploy backend ${VERSION} to production + gcp-dr"
           git push origin deploy-backend-${VERSION}
           gh pr create --title "Deploy Backend ${VERSION} to production" --body "Automated PR — backend ${VERSION} → production + gcp-dr" --base main --head deploy-backend-${VERSION}
