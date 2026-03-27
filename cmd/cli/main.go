@@ -4,15 +4,44 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
 const defaultAPI = "https://kli.st"
 
+// extractPage removes --page <n> or --page=<n> from args and returns cleaned args + page value.
+func extractPage(osArgs []string) ([]string, int) {
+	page := 1
+	out := make([]string, 0, len(osArgs))
+	for i := 0; i < len(osArgs); i++ {
+		arg := osArgs[i]
+		if arg == "--page" || arg == "-page" {
+			if i+1 < len(osArgs) {
+				if n, err := strconv.Atoi(osArgs[i+1]); err == nil {
+					page = n
+					i++
+					continue
+				}
+			}
+		}
+		if strings.HasPrefix(arg, "--page=") {
+			if n, err := strconv.Atoi(strings.TrimPrefix(arg, "--page=")); err == nil {
+				page = n
+				continue
+			}
+		}
+		out = append(out, arg)
+	}
+	return out, page
+}
+
 func main() {
+	cleanArgs, page := extractPage(os.Args[1:])
+	os.Args = append([]string{os.Args[0]}, cleanArgs...)
+
 	flag.Usage = printHelp
 	apiURL := flag.String("api", defaultAPI, "Backend API URL")
-	page := flag.Int("page", 1, "Page number for results")
 	flag.Parse()
 	args := flag.Args()
 
@@ -29,12 +58,12 @@ func main() {
 		}
 		query := strings.Join(args[1:], " ")
 		query = strings.TrimPrefix(query, "tool=")
-		cmds, err := fetchCommands(*apiURL, query, *page)
+		cmds, err := fetchCommands(*apiURL, query, page)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
-		displayResults(cmds, query, *page)
+		displayResults(cmds, query, page)
 
 	case "help", "-h", "--help":
 		printHelp()
