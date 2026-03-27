@@ -8,7 +8,7 @@ import (
 	"golang.org/x/term"
 )
 
-const syntaxCol = 40
+const syntaxCol = 60
 
 func displayResults(cmds []Command, query string, page int) {
 	if len(cmds) == 0 {
