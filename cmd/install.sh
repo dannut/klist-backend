@@ -22,7 +22,7 @@ warn()    { echo -e "  ${YELLOW}!${RESET} $1"; }
 die()     { echo -e "  ${RED}✗${RESET} $1"; exit 1; }
 
 echo ""
-echo -e "${BOLD}kli.st installer v${KLI_VERSION}${RESET}"
+echo -e "${BOLD}kli.st installer${RESET}"
 echo "  kli — DevOps CLI command search"
 echo ""
 

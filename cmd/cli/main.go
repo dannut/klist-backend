@@ -99,8 +99,8 @@ EXAMPLES
 
 SUPPORTED TOOLS
   docker   kubectl  git       terraform  aws     gcloud
-  helm     ansible  linux     nginx      bash    vim
-  psql     redis    mongo     aws        pip     npm  ...
+  helm     ansible  linux     nginx      argocd  prometheus
+  grafana  vault    redis     kafka      harbor  flux  ...
 
   https://kli.st
 `)
