@@ -212,7 +212,7 @@ Respond ONLY with valid JSON, no explanation, no markdown.
 
 Query: %s`, query)
 
-	reqBody, _ := json.Marshal(geminiGenerateRequest{
+	reqBody, err := json.Marshal(geminiGenerateRequest{
 		Contents: []geminiContent{
 			{Parts: []geminiPart{{Text: prompt}}},
 		},
@@ -221,6 +221,9 @@ Query: %s`, query)
 			MaxOutputTokens: 64,
 		},
 	})
+	if err != nil {
+		return QueryIntent{}, fmt.Errorf("gemini: failed to marshal request: %w", err)
+	}
 
 	const intentURL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent"
 
@@ -293,11 +296,14 @@ type geminiEmbedResponse struct {
 }
 
 func getEmbedding(ctx context.Context, text string) ([]float32, error) {
-	reqBody, _ := json.Marshal(geminiEmbedRequest{
+	reqBody, err := json.Marshal(geminiEmbedRequest{
 		Model:                "models/gemini-embedding-001",
 		Content:              geminiContent{Parts: []geminiPart{{Text: text}}},
 		OutputDimensionality: 768,
 	})
+	if err != nil {
+		return nil, fmt.Errorf("gemini: failed to marshal embed request: %w", err)
+	}
 
 	const embedURL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent"
 

@@ -38,7 +38,7 @@ func initCache() {
 // The raw query never appears in Redis keys, metrics, or logs.
 func cacheKey(q string, page, perPage int) string {
 	h := sha256.Sum256([]byte(q))
-	return fmt.Sprintf("kli:search:%x:p%d:pp%d", h[:8], page, perPage)
+	return fmt.Sprintf("kli:search:%x:p%d:pp%d", h[:16], page, perPage)
 }
 
 // cacheGet retrieves cached results. Returns nil if miss or Redis unavailable.

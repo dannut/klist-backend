@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 )
@@ -91,7 +92,7 @@ func searchHandler(c *gin.Context) {
 		return
 	}
 	q = strings.TrimPrefix(q, "tool=")
-	if len(q) > 200 {
+	if utf8.RuneCountInString(q) > 200 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "query too long"})
 		return
 	}

@@ -25,11 +25,16 @@ func searchVector(ctx context.Context, q string, page, perPage int) ([]Command, 
 	}
 
 	// Convert []float32 → postgres vector string [0.1,0.2,...]
+	// NaN and Inf are invalid for PostgreSQL vector type — fall back to SQL search.
 	sb := strings.Builder{}
 	sb.WriteString("[")
 	for i, v := range embedding {
 		if i > 0 {
 			sb.WriteString(",")
+		}
+		if v != v || v > 1e38 || v < -1e38 { // NaN or Inf check
+			slog.Warn("vector search: invalid float in embedding, falling back to SQL", "index", i, "value", v)
+			return searchDB(ctx, q, page, perPage)
 		}
 		fmt.Fprintf(&sb, "%f", v)
 	}

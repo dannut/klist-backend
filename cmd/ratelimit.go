@@ -20,9 +20,21 @@ import (
 
 const (
 	rateWindow   = time.Second
-	rateBurst    = 10
+	rateBurst    = 5 // must match rateRequests for consistent behaviour
 	rateRequests = 5 // max requests per rateWindow per IP
 )
+
+// rateLimitScript atomically increments the counter and sets the TTL only
+// on the first request. Using a Lua script ensures INCR + EXPIRE are
+// executed as a single atomic operation, eliminating the race condition
+// where the TTL could be missing if the server restarts between the two calls.
+var rateLimitScript = redis.NewScript(`
+local current = redis.call('INCR', KEYS[1])
+if current == 1 then
+    redis.call('EXPIRE', KEYS[1], ARGV[1])
+end
+return current
+`)
 
 // ── Redis rate limit ──────────────────────────────────────────────────────────
 
@@ -34,24 +46,15 @@ func redisRateAllow(ip string) (bool, error) {
 	key := fmt.Sprintf("kli:rate:%s", ip)
 	ctx := context.Background()
 
-	// Fix: use Pipeline but only set Expire when key is NEW (incr == 1).
-	// Previously Expire was called on every request, resetting the TTL window
-	// and allowing a persistent spammer to never hit the limit.
-	var pipe redis.Pipeliner = rdb.Pipeline()
-	incr := pipe.Incr(ctx, key)
-	_, err := pipe.Exec(ctx)
+	// Atomic INCR + EXPIRE via Lua script — eliminates the race condition
+	// where a crash between INCR and EXPIRE would leave a key without TTL,
+	// permanently blocking a user IP.
+	val, err := rateLimitScript.Run(ctx, rdb, []string{key}, int(rateWindow.Seconds())).Int64()
 	if err != nil {
 		return false, err
 	}
 
-	// Set TTL only on first request — key expires naturally after rateWindow
-	if incr.Val() == 1 {
-		if err := rdb.Expire(ctx, key, rateWindow).Err(); err != nil {
-			slog.Warn("rate limit: failed to set key TTL", "key", key, "err", err)
-		}
-	}
-
-	return incr.Val() <= int64(rateRequests), nil
+	return val <= int64(rateRequests), nil
 }
 
 // ── In-memory fallback ────────────────────────────────────────────────────────
