@@ -5,7 +5,7 @@
 
 set -e
 
-KLI_VERSION="2.0.3"
+KLI_VERSION="2.x.x"
 INSTALL_DIR="$HOME/.local/bin"
 BINARY_NAME="kli"
 BASE_URL="https://kli.st/releases"

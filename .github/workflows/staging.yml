@@ -118,7 +118,7 @@ jobs:
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: '❌ Pipeline 2 esuat — ' + context.sha.substring(0, 7),
+              title: 'Pipeline 2 failed — ' + context.sha.substring(0, 7),
               body: '## Pipeline 2 — Staging esuat\n\n' +
                 '| Job | Status |\n' +
                 '|-----|--------|\n' +
