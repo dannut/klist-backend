@@ -8,8 +8,6 @@ import (
 	"golang.org/x/term"
 )
 
-const syntaxCol = 60
-
 func displayResults(cmds []Command, query string, page int) {
 	if len(cmds) == 0 {
 		fmt.Printf("\n  No results for %q\n\n", query)
@@ -26,6 +24,17 @@ func displayResults(cmds []Command, query string, page int) {
 	}
 	fmt.Printf("\n%s\n\n", rule)
 
+	// syntaxCol = longest syntax in results, capped between 40 and 70
+	syntaxCol := 40
+	for _, cmd := range cmds {
+		if l := len(cmd.Syntax); l > syntaxCol {
+			syntaxCol = l
+		}
+	}
+	if syntaxCol > 70 {
+		syntaxCol = 70
+	}
+
 	descWidth := width - syntaxCol - 12
 	if descWidth < 20 {
 		descWidth = 20
@@ -33,8 +42,8 @@ func displayResults(cmds []Command, query string, page int) {
 
 	for _, cmd := range cmds {
 		syntax := cmd.Syntax
-		if len(syntax) > syntaxCol-1 {
-			syntax = syntax[:syntaxCol-4] + "..."
+		if len(syntax) > syntaxCol {
+			syntax = syntax[:syntaxCol-3] + "..."
 		}
 
 		desc := cmd.Description
@@ -59,8 +68,8 @@ func displayResults(cmds []Command, query string, page int) {
 
 func termWidth() int {
 	if w, _, err := term.GetSize(int(os.Stdout.Fd())); err == nil && w > 20 {
-		if w > 120 {
-			return 120
+		if w > 200 {
+			return 200
 		}
 		return w
 	}

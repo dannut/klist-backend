@@ -1,7 +1,7 @@
-name: Pipeline 3 — Production Release
+name: Pipeline 3 — Production 
 
 on:
-  # Triggered when Release Please creates a new tag (e.g. v1.0.0)
+  # Triggered when Semantic release creates a new tag (e.g. v1.0.0)
   push:
     tags:
       - 'v*'
@@ -99,7 +99,7 @@ jobs:
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: '✅ Production Release ' + context.ref.replace('refs/tags/', ''),
+              title: 'Production Release ' + context.ref.replace('refs/tags/', ''),
               body: '## Production Release Successful\n\n' +
                 '**Version:** ' + context.ref.replace('refs/tags/', '') + '\n' +
                 '**Commit:** ' + context.sha + '\n' +
@@ -120,8 +120,8 @@ jobs:
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: '❌ Production Release FAILED — ' + context.ref.replace('refs/tags/', ''),
-              body: '## ❌ Pipeline 3 esuat\n\n' +
+              title: 'Production Release FAILED — ' + context.ref.replace('refs/tags/', ''),
+              body: '## Pipeline 3 failed\n\n' +
                 '| Job | Status |\n' +
                 '|-----|--------|\n' +
                 '| Build & Push | ${{ needs.build-push.result }} |\n' +

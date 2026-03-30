@@ -21,13 +21,13 @@ RUN go mod download
 
 COPY cli/ .
 
-# Compilam pentru toate platformele suportate
+# for supported platforms
 RUN CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 go build -ldflags="-s -w" -o releases/kli-linux-amd64 .
 RUN CGO_ENABLED=0 GOOS=linux   GOARCH=arm64 go build -ldflags="-s -w" -o releases/kli-linux-arm64 .
 RUN CGO_ENABLED=0 GOOS=darwin  GOARCH=amd64 go build -ldflags="-s -w" -o releases/kli-darwin-amd64 .
 RUN CGO_ENABLED=0 GOOS=darwin  GOARCH=arm64 go build -ldflags="-s -w" -o releases/kli-darwin-arm64 .
 
-# Generam SHA256SUMS
+# generate SHA256SUMS
 RUN cd releases && sha256sum kli-linux-amd64 kli-linux-arm64 kli-darwin-amd64 kli-darwin-arm64 > SHA256SUMS
 
 # ── Stage 3: Run ──────────────────────────────────────────────────────────────
@@ -37,7 +37,7 @@ RUN apk --no-cache add ca-certificates
 
 RUN addgroup -S -g 65532 nonroot && adduser -S -u 65532 -G nonroot nonroot
 
-# Copiem binarul backend
+# copy backend binary
 COPY --from=builder /app/kli-backend /kli-backend
 
 # Copiem binarele CLI

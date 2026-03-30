@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -256,15 +255,4 @@ func releasesHandler(c *gin.Context) {
 	c.Header("Content-Type", contentType)
 	c.Header("Content-Disposition", "attachment; filename=\""+filename+"\"")
 	c.File(filePath)
-}
-
-func parseIntParam(s string, fallback int) int {
-	if s == "" {
-		return fallback
-	}
-	v, err := strconv.Atoi(s)
-	if err != nil {
-		return fallback
-	}
-	return v
 }
