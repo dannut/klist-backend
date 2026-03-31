@@ -35,7 +35,14 @@ func displayResults(cmds []Command, query string, page int) {
 		syntaxCol = 70
 	}
 
-	descWidth := width - syntaxCol - 12
+	// 2 (indent) + syntaxCol + 7 (" — ") + descWidth + 2 + maxToolLen + 2 (brackets+spaces)
+	maxToolLen := 0
+	for _, cmd := range cmds {
+		if l := len(cmd.Tool); l > maxToolLen {
+			maxToolLen = l
+		}
+	}
+	descWidth := width - syntaxCol - 9 - maxToolLen - 4
 	if descWidth < 20 {
 		descWidth = 20
 	}
