@@ -64,6 +64,7 @@ func healthHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"status":      "UP",
 		"service":     "kli.st",
+		"db":          "UP",
 		"redis":       redisStatus,
 		"environment": getenv("APP_STATUS", "dev"),
 	})
