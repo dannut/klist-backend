@@ -97,7 +97,9 @@ jobs:
           for i in $(seq 1 30); do
             CURRENT=$(curl -sf https://kli.st/api/version | jq -r '.version' 2>/dev/null || echo "")
             if [ "$CURRENT" = "$VERSION" ]; then
-              echo "Production confirmed running $VERSION"
+              echo "Version confirmed — waiting 15min for Argo Rollouts analysis to complete..."
+              sleep 900
+              echo "Rollout analysis window passed — syncing GCP-DR"
               exit 0
             fi
             echo "Attempt $i/30: current=$CURRENT, expected=$VERSION — waiting 30s..."
