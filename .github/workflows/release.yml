@@ -84,10 +84,46 @@ jobs:
           git push origin deploy-backend-${VERSION}
           gh pr create --title "Deploy Backend ${VERSION} to production" --body "Automated PR — backend ${VERSION} → production" --base main --head deploy-backend-${VERSION}
 
+  sync-gcp-dr:
+    name: Sync GCP-DR after rollout
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: success()
+    steps:
+      - name: Wait for production rollout to complete
+        run: |
+          VERSION="${{ github.ref_name }}"
+          echo "Waiting for kli.st to run backend $VERSION..."
+          for i in $(seq 1 30); do
+            CURRENT=$(curl -sf https://kli.st/api/version | jq -r '.version' 2>/dev/null || echo "")
+            if [ "$CURRENT" = "$VERSION" ]; then
+              echo "Production confirmed running $VERSION"
+              exit 0
+            fi
+            echo "Attempt $i/30: current=$CURRENT, expected=$VERSION — waiting 30s..."
+            sleep 30
+          done
+          echo "Timeout: production did not reach $VERSION in 15 minutes"
+          exit 1
+
+      - name: Sync GCP-DR via kubectl
+        run: |
+          VERSION="${{ github.ref_name }}"
+          IMAGE="ghcr.io/dannut/klist-backend:${VERSION}"
+
+          echo "${{ secrets.GCP_KUBECONFIG }}" > /tmp/gcp.yaml
+          chmod 600 /tmp/gcp.yaml
+
+          kubectl set image deployment/kli-backend kli-backend=${IMAGE} -n kli --kubeconfig /tmp/gcp.yaml
+          kubectl rollout status deployment/kli-backend -n kli --kubeconfig /tmp/gcp.yaml --timeout=5m
+
+          rm -f /tmp/gcp.yaml
+          echo "GCP-DR synced to backend $VERSION"
+
   notify-success:
     name: Notify Success
     runs-on: ubuntu-latest
-    needs: deploy
+    needs: sync-gcp-dr
     if: success()
     steps:
       - uses: actions/github-script@v8
