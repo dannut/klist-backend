@@ -125,7 +125,7 @@ func searchHandler(c *gin.Context) {
 	results, err := search(ctx, q, c.ClientIP(), page, perPage)
 	if err != nil {
 		if errors.Is(err, errNoResults) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "no commands found matching your search criteria"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "no commands found — try a different keyword or tool name"})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "search error"})
