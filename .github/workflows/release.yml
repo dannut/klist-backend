@@ -99,7 +99,12 @@ jobs:
             if [ "$CURRENT" = "$VERSION" ]; then
               echo "Version confirmed — waiting 15min for Argo Rollouts analysis to complete..."
               sleep 900
-              echo "Rollout analysis window passed — syncing GCP-DR"
+              FINAL=$(curl -sf https://kli.st/api/version | jq -r '.version' 2>/dev/null || echo "")
+              if [ "$FINAL" != "$VERSION" ]; then
+                echo "Rollback detected after 15min: current=$FINAL, expected=$VERSION — aborting GCP-DR sync"
+                exit 1
+              fi
+              echo "Rollout stable — syncing GCP-DR"
               exit 0
             fi
             echo "Attempt $i/30: current=$CURRENT, expected=$VERSION — waiting 30s..."
