@@ -94,7 +94,7 @@ jobs:
         run: |
           VERSION="${{ github.ref_name }}"
           echo "Waiting for kli.st to run backend $VERSION..."
-          for i in $(seq 1 30); do
+          for i in $(seq 1 40); do
             CURRENT=$(curl -sf https://kli.st/api/version | jq -r '.version' 2>/dev/null || echo "")
             if [ "$CURRENT" = "$VERSION" ]; then
               echo "Version confirmed — waiting 12min for Argo Rollouts analysis to complete..."
@@ -107,10 +107,10 @@ jobs:
               echo "Rollout stable — syncing GCP-DR"
               exit 0
             fi
-            echo "Attempt $i/30: current=$CURRENT, expected=$VERSION — waiting 30s..."
+            echo "Attempt $i/40: current=$CURRENT, expected=$VERSION — waiting 30s..."
             sleep 30
           done
-          echo "Timeout: production did not reach $VERSION in 15 minutes"
+          echo "Timeout: production did not reach $VERSION in 20 minutes"
           exit 1
 
       - name: Sync GCP-DR via kubectl

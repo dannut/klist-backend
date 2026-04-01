@@ -68,6 +68,7 @@ func healthHandler(c *gin.Context) {
 		"redis":       redisStatus,
 		"environment": getenv("APP_STATUS", "dev"),
 		"uptime":      time.Since(startTime).Round(time.Second).String(),
+		"timestamp":   time.Now().UTC().Format(time.RFC3339),
 	})
 }
 
