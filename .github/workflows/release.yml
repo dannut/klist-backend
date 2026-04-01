@@ -97,11 +97,11 @@ jobs:
           for i in $(seq 1 30); do
             CURRENT=$(curl -sf https://kli.st/api/version | jq -r '.version' 2>/dev/null || echo "")
             if [ "$CURRENT" = "$VERSION" ]; then
-              echo "Version confirmed — waiting 15min for Argo Rollouts analysis to complete..."
-              sleep 900
+              echo "Version confirmed — waiting 12min for Argo Rollouts analysis to complete..."
+              sleep 720
               FINAL=$(curl -sf https://kli.st/api/version | jq -r '.version' 2>/dev/null || echo "")
               if [ "$FINAL" != "$VERSION" ]; then
-                echo "Rollback detected after 15min: current=$FINAL, expected=$VERSION — aborting GCP-DR sync"
+                echo "Rollback detected after 12min: current=$FINAL, expected=$VERSION — aborting GCP-DR sync"
                 exit 1
               fi
               echo "Rollout stable — syncing GCP-DR"
