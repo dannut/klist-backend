@@ -69,6 +69,7 @@ func healthHandler(c *gin.Context) {
 		"environment": getenv("APP_STATUS", "dev"),
 		"uptime":      time.Since(startTime).Round(time.Second).String(),
 		"timestamp":   time.Now().UTC().Format(time.RFC3339),
+		"node":        getenv("NODE_NAME", "unknown"),
 	})
 }
 
