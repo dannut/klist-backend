@@ -19,7 +19,7 @@ import (
 var startTime = time.Now()
 
 func main() {
-	// JSON structured logging — replaces log.Printf across the app
+	// JSON structured logging — replaces log.Printf across the app (structured)
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 	})))
