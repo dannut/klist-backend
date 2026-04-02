@@ -93,8 +93,8 @@ jobs:
       - name: Wait for Argo Rollouts to complete
         run: |
           VERSION="${{ github.ref_name }}"
-          echo "Waiting 15 minutes for Argo Rollouts analysis to complete..."
-          sleep 900
+          echo "Waiting 12 minutes for Argo Rollouts analysis to complete..."
+          sleep 720
           CURRENT=$(curl -sf https://kli.st/api/version | jq -r '.version' 2>/dev/null || echo "")
           if [ "$CURRENT" != "$VERSION" ]; then
             echo "Rollback detected: current=$CURRENT, expected=$VERSION — aborting GCP-DR sync"
